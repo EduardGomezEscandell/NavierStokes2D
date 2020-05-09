@@ -2,13 +2,13 @@ clear all;clc;
 
 % Domain
 width = 2;
-height = 3;
-duration = 1;
+height = 1;
+duration = 5;
 
 % Discretization
-x_elems = 8;
-y_elems = 12;
-n_steps = 10;
+x_elems = 4;
+y_elems = 4;
+n_steps = 50;
 
 degree = 1; %(space)
 
@@ -19,7 +19,6 @@ tol = 1e-5;
 % Physical properties
 visc0 = 1;
 mu = 1;
-omega = 1;
 
 % Generating mesh
 [coords,connect] = square_mesh(width, height, x_elems, y_elems, degree);
@@ -32,28 +31,29 @@ nodes_per_elem = size(connect,1);
 % Selecting boundary conditions
 removed_dof = [];
 enforced_vals = [];
-t = linspace(0, duration, n_steps);
 for n = 1:n_nodes
     X = coords(:,n);
     if X(1) == 0 % Gamma 1 and 2
         removed_dof(end+1) = n;
-        enforced_vals(end+1,:) = 1 + sin(omega*t - pi/2);
-        
-        removed_dof(end+1) = n + 2*n_nodes;
-        enforced_vals(end+1,:) = 1 * ones(1,n_steps);
-        
-    elseif X(2) == 0 % Gamma 1 and 2
-        removed_dof(end+1) = n + 2*n_nodes;
         enforced_vals(end+1,:) = 0 * ones(1,n_steps);
+        removed_dof(end+1) = n + 2*n_nodes;
+        enforced_vals(end+1) = 1;
+    end
+    if X(2) == 0 % Gamma 1 and 2
+        removed_dof(end+1) = n + 2*n_nodes;
+        enforced_vals(end+1) = 0;
     end
 end
 
-free_dof = 1:3*n_nodes;
+free_dof = 1:n_nodes;
 free_dof(removed_dof) = [];
 
 % Solution vectors
 X_history = zeros(n_nodes*3, n_steps);
-X_history(removed_dof,:) = enforced_vals;
+X = X_history(:,1);
+
+% First iteeration
+source = zeros(n_nodes,1);
 
 % Initializing
 dt = duration / n_steps;
@@ -61,11 +61,11 @@ dt = duration / n_steps;
 % Assembling
 
 for step = 2:n_steps
-    X = X_history(:,step-1);
-    X(removed_dof) = enforced_vals(:,step) - enforced_vals(:,step-1);   
-    dX = X - X_history(:,step-1);
     
-    F_global_non_iter = sparse(n_nodes*3,1);
+    X(removed_dof) = enforced_vals(:,step);
+    
+    K_global = sparse(n_nodes*3, n_nodes*3); % ux, uy, p, r
+    F_global = sparse(n_nodes*3,1);
     
     modU = sqrt(X(1:n_nodes).^2 + X(n_nodes+1:n_nodes*2).^2);
     source = 1./(1 + exp(-10*(modU - 0.5)));
@@ -77,11 +77,10 @@ for step = 2:n_steps
         nodes = connect(:,el);
         local_coordinates = coords(:, nodes);
         
-        x  = [X(nodes), X(nodes+n_nodes), X(nodes+2*nodes)];
-        dx = [dX(nodes),dX(nodes+n_nodes),dX(nodes+2*nodes)];
+        x =  [X(nodes), X(nodes+n_nodes), X(nodes+2*nodes)];
         v = visc(nodes);
         
-        [K, K1, C1, M] = non_iterated_arrays(local_coordinates, x, dx, v, refelem);
+        [K, K1, C1, M] = non_iterated_arrays(local_coordinates, x, v, refelem);
         
         z = zeros(size(K1));
         b(1:nodes_per_elem,1)   = K1 * x(:,1);
@@ -90,20 +89,12 @@ for step = 2:n_steps
         
         F_local = [b; d];
         
-        dof = [nodes; nodes+n_nodes; nodes+2*n_nodes];
+        nodes = [nodes; nodes+n_nodes; nodes+2*n_nodes];
         
-        F_global_non_iter(dof) = F_global_non_iter(dof) + F_local;
+        F_global(nodes) = F_global(nodes) + F_local;
     end
-    
-    % Iterating
-    K_global = sparse(n_nodes*3, n_nodes*3); % ux, uy, p, r
-    
-    
-    for iter=1:maxIter
-        k_non_zero = nnz(K_global);
-        K_global = spalloc(n_nodes*3, n_nodes*3, k_non_zero);
         
-        F_global = F_global_non_iter;
+    for iter=1:maxIter
         
         modU = sqrt(X(1:n_nodes).^2 + X(n_nodes+1:n_nodes*2).^2);
         source = 1./(1 + exp(-10*(modU - 0.5)));
@@ -114,12 +105,11 @@ for step = 2:n_steps
             nodes = connect(:,el);
             local_coordinates = coords(:, nodes);
             
-            x  = [X(nodes), X(nodes+n_nodes), X(nodes+2*nodes)];
-            dx = [dX(nodes),dX(nodes+n_nodes),dX(nodes+2*nodes)];
-            s = source(nodes);
-            v = visc(nodes);
+            x =  [X(nodes), X(nodes+n_nodes), X(nodes+2*nodes)];
+            s = source(nodes,:);
+            v = visc(nodes,:);
             
-            [K, K1, K21, K22, C1, C21, C22, M] = FEM_matrices(local_coordinates,refelem, x, dx, v);
+            [K, K1, K21, K22, C1, C21, C22, M] = FEM_matrices(local_coordinates,refelem, x, v);
             
             % Assembly of Solvent
             % A*u = 0
@@ -141,35 +131,31 @@ for step = 2:n_steps
             F_local = [zeros(2*nodes_per_elem,1); d];
                       
             % Assembling
-            dof = [nodes;
-                  nodes + n_nodes;
-                  nodes + n_nodes*2];
+            nodes = [nodes;
+                     nodes + n_nodes;
+                     nodes + n_nodes*2];
 
-            K_global(dof,dof) = K_global(dof, dof) + K_local;
-            F_global(dof) = F_global(dof) + F_local; 
+            K_global(nodes, nodes) = K_global(nodes, nodes) + K_local;
+            F_global(nodes) = F_global(nodes) + F_local; 
         end
         
-        % Solving reduced system
-        K_global = K_global(free_dof, free_dof);
-        F_global = F_global(free_dof);
-        
         % Newton-Rhapson
-        R = K_global*dX(free_dof) - F_global;
+        R = K_global*X - F_global;
+        R(removed_dof) = [];
         
         % Calculating jacobian
-        J = calc_jacobian(coords, connect, X, dX, visc0, mu, dt, removed_dof,refelem);
-        J = J(free_dof, free_dof);
+        J = calc_jacobian(coords, connect, X, visc0, mu, dt, refelem);
+        J(removed_dof, removed_dof) = [];
         
         % Newton Rhapson
-        dX(free_dof) = dX(free_dof) - J \ R;
+        X_new(free_dof) = X(free_dof) - J \ R;
         
         % Convergence condition
-        R = K_global*dX(free_dof) - F_global;
         error = norm(R);
         if error < tol
             break;
         end
-         X = X_history(:,step-1) + dX;
+        X = X_new;
     end
     
     if iter==maxIter
@@ -182,7 +168,8 @@ for step = 2:n_steps
         fprintf('Step %3d of %3d completed\n',step, n_steps);
     end
     
-    X_history(:,step) = X_history(:,step-1) + dX;
+    S_prev = S;
+    X_history(:,step) = X_new;
 end
 
 post_porcessing(coords, X_history, duration)
