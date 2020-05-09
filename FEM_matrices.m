@@ -1,9 +1,12 @@
-function [K, C, M] = FEM_matrices(X, refelem, k,c,m)
+function [K, K_v, C, M, F, Fprev] = FEM_matrices(X, refelem, a, s, s_prev, visc)
     nodes_per_elem = length(X);
     
-    K = zeros(nodes_per_elem, nodes_per_elem);
-    C = zeros(nodes_per_elem, nodes_per_elem);
-    M = zeros(nodes_per_elem, nodes_per_elem);
+    K = zeros(nodes_per_elem);
+    K_v = zeros(nodes_per_elem);
+    C = zeros(nodes_per_elem);
+    M = zeros(nodes_per_elem);
+    F = zeros(nodes_per_elem, 1 );
+    Fprev = zeros(nodes_per_elem, 1 );
     jacobian = refelem.jacobian(X);
     
     if refelem.shape=='Q' % Quads
@@ -16,19 +19,22 @@ function [K, C, M] = FEM_matrices(X, refelem, k,c,m)
                 invJ = inv(jacobian.calc(jacobian,xi,eta));
                 N = refelem.N(:,p)';
                 gradN = refelem.gradN(:,:,p);
+                w = 1; % placeholder
                 
-                K = K + (invJ*gradN)' * k * invJ*gradN;
-                C = C + (invJ*gradN)' * c * N;
-                M = M + m*(N'*N);
-                
+                K_v = K_v + w * (invJ*gradN)' * (N*visc) * invJ*gradN;
+                K = K + w * (invJ*gradN)' * invJ*gradN;
+                C = C + w * N' * ((N*a) * invJ*gradN);
+                M = M + w * (N'*N);
+                F = F + w * (N*s) * N';
+                Fprev = Fprev + w * (N*s_prev) * N';
                 p = p+1;
             end
         end
         
-        area = det(jacobian.calc(jacobian,0,0));
-        K = K * area/4;
-        C = C * area/4;
-        M = M * area/4;
+        detJ = det(jacobian.calc(jacobian,0,0));
+        K = K * detJ;
+        C = C * detJ;
+        M = M * detJ;
         
     else
        % Triangles 

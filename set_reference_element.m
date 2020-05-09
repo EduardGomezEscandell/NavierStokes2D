@@ -17,6 +17,7 @@ function refelem = set_reference_element(degree)
             
             gauss_p = [1,-1] / sqrt(3);
             refelem.gauss_p = gauss_p;
+            refelem.weights = ones(2);
             
             p = 1;
             for xi = gauss_p                
@@ -24,14 +25,6 @@ function refelem = set_reference_element(degree)
                     for i=1:length(N)
                         refelem.N(i,p) = N{i}(xi,eta);
                         refelem.gradN(:,i,p) = gradN{i}(xi,eta);
-                        
-                        for j=1:3
-                            k = i+(j-1)*length(N);
-                            refelem.N_large(j,k,p) = refelem.N(i,p);
-                            
-                            j2 = j*2 - 1;
-                            refelem.gradN_large(j2:j2+1,k,p) = refelem.gradN(:,i,p);
-                        end
                     end
                     p = p+1;
                 end
@@ -66,6 +59,7 @@ function refelem = set_reference_element(degree)
             
             gauss_p = [1,-1] / sqrt(3);
             refelem.gauss_p = gauss_p;
+            refelem.weights = ones(2);
             
             p = 1;
             for xi = gauss_p                
