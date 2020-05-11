@@ -1,4 +1,4 @@
-function [K, K1, K21, K22, C1, C21, C22, M] = FEM_matrices(coords, refelem, X, dX, visc)
+function local_mat = FEM_matrices(coords, refelem, X, dX, visc)
     nodes_per_elem = length(coords);
     
     K = zeros(nodes_per_elem);
@@ -47,14 +47,14 @@ function [K, K1, K21, K22, C1, C21, C22, M] = FEM_matrices(coords, refelem, X, d
         end
         
         detJ = det(jacobian.calc(jacobian,0,0));
-        K   = K   * detJ;
-        K1  = K1  * detJ;
-        K21 = K21 * detJ;
-        K22 = K22 * detJ;
-        C1  = C1  * detJ;
-        C21 = C21 * detJ;
-        C22 = C22 * detJ;
-        M   = M   * detJ;
+        local_mat.K   = K   * detJ;
+        local_mat.K1  = K1  * detJ;
+        local_mat.K21 = K21 * detJ;
+        local_mat.K22 = K22 * detJ;
+        local_mat.C1  = C1  * detJ;
+        local_mat.C21 = C21 * detJ;
+        local_mat.C22 = C22 * detJ;
+        local_mat.M   = M   * detJ;
         
     else
        % Triangles 

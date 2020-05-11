@@ -1,4 +1,4 @@
-function post_porcessing(coords, X_history, duration)
+function post_processing(coords, X_history, duration)
     n_nodes = size(coords,2);
     n_steps = size(X_history,2);
     width = max(coords(1,:));
