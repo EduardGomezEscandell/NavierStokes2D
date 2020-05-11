@@ -1,5 +1,5 @@
-function local_mat = FEM_matrices(coords, refelem, X, dX, visc)
-    nodes_per_elem = length(coords);
+function local_mat = FEM_matrices(coords, refelem, X, visc)
+    nodes_per_elem = length(coords);    
     
     K = zeros(nodes_per_elem);
     K1 = zeros(nodes_per_elem);
@@ -9,7 +9,10 @@ function local_mat = FEM_matrices(coords, refelem, X, dX, visc)
     C1 = zeros(nodes_per_elem);
     C21 = zeros(nodes_per_elem);
     C22 = zeros(nodes_per_elem);
-        
+    
+    Q1 = zeros(nodes_per_elem);
+    Q2 = zeros(nodes_per_elem);
+    
     M = zeros(nodes_per_elem);
     jacobian = refelem.jacobian(coords);
     
@@ -17,29 +20,35 @@ function local_mat = FEM_matrices(coords, refelem, X, dX, visc)
         
         % Integration
         p = 1;
-        for xi = refelem.gauss_p
-            for eta = refelem.gauss_p
+        for gp1 = refelem.gauss
+            xi = gp1(1);
+            for gp2 = refelem.gauss
+                eta = gp2(1);
+                w = gp1(2) * gp2(2);
                 
-                invJ = inv(jacobian.calc(jacobian,xi,eta));
+                % Shape functions
+                J = jacobian.calc(jacobian,xi,eta);
                 N = refelem.N(:,p)';
-                gradN = refelem.gradN(:,:,p);
-                w = 1; % placeholder
+                gradN = J\refelem.gradN(:,:,p);
                 
                 % Gradients
-                grad_dRho= invJ * gradN * X(:,3);
-                grad_du = invJ * gradN * dX(:,1);
-                grad_dv = invJ * gradN * dX(:,2); 
+                grad_dRho= gradN * X(:,3);
+                grad_u = gradN * X(:,1);
+                grad_v = gradN * X(:,2); 
                 
                 % Stiffnes
-                K = K + w * (invJ*gradN)' * invJ*gradN;
+                K   =  K  + w * (gradN' * gradN);
                 
-                K1  = K1  + w * (invJ*gradN)' * (N*visc) * invJ*gradN;  % K1(nu)
-                K21 = K21 + w * (invJ*gradN)' * grad_du * N;             % K2(u)
-                K22 = K22 + w * (invJ*gradN)' * grad_dv * N;             % K2(v)
+                K1  =  K1 + w * gradN' * (N*visc) *gradN; % K1(nu)
+                K21 = K21 + w * gradN' * grad_u * N;           % K2(u)
+                K22 = K22 + w * gradN' * grad_v * N;           % K2(v)
                 
-                C1  = C1  + w * N' * ((N*X(:,1:2) * invJ*gradN));  % C1(u,v)
-                C21 = C21 + w * (N' * N) * grad_dRho(1);             % C21(rho)
-                C21 = C21 + w * (N' * N) * grad_dRho(2);             % C22(rho)
+                C1  =  C1 + w * N' * ((N*X(:,1:2) * gradN));  % C1(u,v)
+                C21 = C21 + w * (N' * N) * grad_dRho(1);           % C21(rho)
+                C22 = C22 + w * (N' * N) * grad_dRho(2);           % C22(rho)
+                
+                Q1 = Q1 + w * N' * gradN(1,:);
+                Q2 = Q2 + w * N' * gradN(2,:);
                 
                 M = M + w * (N'*N);
                 p = p+1;
@@ -54,6 +63,8 @@ function local_mat = FEM_matrices(coords, refelem, X, dX, visc)
         local_mat.C1  = C1  * detJ;
         local_mat.C21 = C21 * detJ;
         local_mat.C22 = C22 * detJ;
+        local_mat.Q1  = Q1  * detJ;
+        local_mat.Q2  = Q2  * detJ;
         local_mat.M   = M   * detJ;
         
     else

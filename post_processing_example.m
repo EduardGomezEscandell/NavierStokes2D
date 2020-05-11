@@ -28,4 +28,4 @@ for step=1:n_steps
 end
 
 % Post-processing
-post_porcessing(coords, X_history, duration)
+post_processing(coords, X_history, duration)

@@ -18,4 +18,5 @@ function post_processing_single(coords, X)
     hold off
     view(2)
     axis([-1 width+1 -1 height+1]);
+    colorbar;
 end
