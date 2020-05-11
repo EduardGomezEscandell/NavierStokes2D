@@ -62,8 +62,8 @@ function J = calc_jacobian(coords, connect, X, dX, visc0, mu, dt, removed_dof, r
     
     empty_block = sparse(n_nodes, n_nodes);
     
-    J = [ dt * M + 0.5*K1        empty_block             0.5*K21*Nr;
-              empty_block    dt * M + 0.5*K1             0.5*K22*Nr;
+    J = [ M / dt + 0.5*K1        empty_block             0.5*K21*Nr;
+              empty_block    M / dt + 0.5*K1             0.5*K22*Nr;
          0.5*C21-0.5*M*Su   0.5*C22-0.5*M*Sv dt*M*0.5*mu*K + 0.5*C1];
      
 end

@@ -40,6 +40,9 @@ for n = 1:n_nodes
         enforced_vals(end+1,:) = 1 + sin(omega*t - pi/2);
         
         removed_dof(end+1) = n + 2*n_nodes;
+        enforced_vals(end+1,:) = zeros(size(t));
+        
+        removed_dof(end+1) = n + 2*n_nodes;
         enforced_vals(end+1,:) = 1 * ones(1,n_steps);
         
     elseif X(2) == 0 % Gamma 1 and 2
@@ -123,14 +126,14 @@ for step = 2:n_steps
             
             % Assembly of Solvent
             % A*u = 0
-            a = dt*M + 0.5*K1;
+            a = 1/dt*M + 0.5*K1;
             z = zeros(size(K1));
             A =  [a z
                   z a];
 
             % Assembly of solute
             % B*u = S
-            B = (dt*M + 0.5*C1 + mu*K);
+            B = (1/dt*M + 0.5*C1 + mu*K);
             d = 0.5 * M * s;
             
             % Joining two systems
