@@ -167,6 +167,8 @@ for step = 2:n_steps
             title(sprintf('Error = %g',error)); 
             %
             
+            [Pe_global, Pe] = get_peclet(coords, connect, X, refelem, mu);
+            
             if error < tol
                 break;
             end
