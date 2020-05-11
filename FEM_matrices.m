@@ -32,9 +32,9 @@ function local_mat = FEM_matrices(coords, refelem, X, visc)
                 gradN = J\refelem.gradN(:,:,p);
                 
                 % Gradients
-                grad_dRho= gradN * X(:,3);
                 grad_u = gradN * X(:,1);
                 grad_v = gradN * X(:,2); 
+                grad_dRho= gradN * X(:,4);
                 
                 % Stiffnes
                 K   =  K  + w * (gradN' * gradN);

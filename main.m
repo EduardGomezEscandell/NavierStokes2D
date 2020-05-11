@@ -15,7 +15,7 @@ n_steps = 10;
 theta = 1/2;
 
 method = 1;
-penalty = 1e5;
+penalty = 1e8;
 % 1: Picard
 % 2: Newton-Raphson
 
@@ -24,8 +24,8 @@ maxIter = 50;
 tol = 1e-5;
 
 % Physical properties
-visc0 = 100;
-mu = 100;
+visc0 = 1000;
+mu = 1000;
 omega = 1;
 
 % Generating mesh
@@ -110,7 +110,7 @@ for step = 2:n_steps
             nodes = connect(:,el);
             local_coordinates = coords(:, nodes);
             
-            x  = [ X(nodes), X(nodes+n_nodes), X(nodes+2*nodes)];
+            x  = [ X(nodes), X(nodes+n_nodes), X(nodes+2*nodes), X(nodes+3*nodes)];
             s = source(nodes);
             v = visc(nodes);
                   
