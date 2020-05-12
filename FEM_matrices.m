@@ -47,9 +47,6 @@ function local_mat = FEM_matrices(coords, refelem, X, visc)
                 C21 = C21 + w * (N' * N) * grad_dRho(1);           % C21(rho)
                 C22 = C22 + w * (N' * N) * grad_dRho(2);           % C22(rho)
                 
-                Q1 = Q1 + w * N' * gradN(1,:);
-                Q2 = Q2 + w * N' * gradN(2,:);
-                
                 M = M + w * (N'*N);
                 p = p+1;
             end
@@ -63,8 +60,6 @@ function local_mat = FEM_matrices(coords, refelem, X, visc)
         local_mat.C1  = C1  * detJ;
         local_mat.C21 = C21 * detJ;
         local_mat.C22 = C22 * detJ;
-        local_mat.Q1  = Q1  * detJ;
-        local_mat.Q2  = Q2  * detJ;
         local_mat.M   = M   * detJ;
         
     else

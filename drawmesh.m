@@ -1,4 +1,11 @@
-function drawmesh(coords, connect)
+function drawmesh(coords, connect, draw_labels, varargin)
+    
+    if nargin == 2
+        draw_labels = true;
+    elseif nargin < 2 || nargin > 3
+        error('Wrong number of arguments');
+    end
+    
     n_elems = length(connect);
     n_nodes = length(coords);
     
@@ -9,16 +16,20 @@ function drawmesh(coords, connect)
         Y(5) = Y(1);
         plot(X,Y,'k');
         hold on
-        text(mean(X),mean(Y),num2str(el),'Color','k');
+        if draw_labels
+            text(mean(X),mean(Y),num2str(el),'Color','k');
+        end
     end
     
-    scatter(coords(1,:),coords(2,:),'square','filled','b')
+    if draw_labels
+        scatter(coords(1,:),coords(2,:),'square','filled','b')
+        
+        labels = cell(n_nodes,1);
+        for i = 1:n_nodes
+            labels{i} = sprintf(' %d',i);
+        end
     
-    labels = cell(n_nodes,1);
-    for i = 1:n_nodes
-        labels{i} = sprintf(' %d',i);
+        text(coords(1,:),coords(2,:),labels,'Color','b');
     end
-    
-    text(coords(1,:),coords(2,:),labels,'Color','b');
     hold off
 end
