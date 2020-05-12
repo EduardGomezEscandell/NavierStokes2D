@@ -34,7 +34,7 @@ function refelem = set_reference_element(degree)
         case 2
             refelem.order = 2;
             refelem.shape = 'Q';
-            refelem.jacobian = @jacobian9;
+            refelem.jacobian = @jacobian4;
             
             % Shape functions
             N{1} = @(x,y) ( 1/4 * (1-x) * (1-y) * x*y);
@@ -58,13 +58,13 @@ function refelem = set_reference_element(degree)
             gradN{8} = @(x,y) (-1/2*[1-y^2-2*x+2*x*y^2, 2*x*y*(x-1)]');
             gradN{9} = @(x,y) ([2*x*(y^2-1), 2*y*(x^2-1)]');
             
-            gauss_x = [1,-1] / sqrt(3);
+            gauss_x = [1,-1];% / sqrt(3);
             gauss_w = [1, 1];
-            refelem.gauss = [gauss_p; gauss_w];
+            refelem.gauss = [gauss_x; gauss_w];
             
             p = 1;
-            for xi = gauss_p                
-                for eta=gauss_p
+            for xi = gauss_x                
+                for eta=gauss_x
                     
                     for i=1:length(N)
                         refelem.N(i,p) = N{i}(xi,eta);
