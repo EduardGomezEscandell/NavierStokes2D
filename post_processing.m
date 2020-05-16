@@ -1,72 +1,67 @@
-function post_processing(coords, X_history, duration)
-    n_nodes = size(coords,2);
-    n_steps = size(X_history,2);
+function post_processing(coords, X_history, duration, dof, mesh,  corner_to_node)
+    
     width = max(coords(1,:));
     height = max(coords(2,:));
     
-    u_dof = 1:n_nodes;
-    v_dof = n_nodes+1:2*n_nodes;
-    p_dof = 2*n_nodes+1:3*n_nodes;
-    d_dof = 3*n_nodes+1:4*n_nodes;
+    T1 = delaunay(coords(1,corner_to_node), coords(2,corner_to_node));
+    T2 = delaunay(coords(1,:), coords(2,:));
     
-    T = delaunay(coords(1,:), coords(2,:));
     time = 0;
-    dt = duration / n_steps;
+    dt = duration / mesh.steps;
     
-    modU = sqrt(X_history(u_dof,:).^2 + X_history(v_dof,:).^2);
+    modU = sqrt(X_history(dof.u,:).^2 + X_history(dof.v,:).^2);
     
     maxU = max(max(modU));
-    maxp = max(max(X_history(p_dof,:)));
-    maxd = max(max(X_history(d_dof,:)));
+    maxp = max(max(X_history(dof.p,:)));
+    maxd = max(max(X_history(dof.d,:)));
     
     minU = min(min(modU));
-    minp = min(min(X_history(p_dof,:)));
-    mind = min(min(X_history(d_dof,:)));
+    minp = min(min(X_history(dof.p,:)));
+    mind = min(min(X_history(dof.d,:)));
     
-    for step=1:n_steps
+    for step=1:mesh.steps+1
         tic;
         X = X_history(:,step);
-        modU = sqrt(X(u_dof).^2 + X(v_dof).^2);
-        subplot(1,3,1);
+        modU = sqrt(X(dof.u).^2 + X(dof.v).^2);
         
-        t = trisurf(T, coords(1,:)', coords(2,:)', zeros(n_nodes,1), modU);
+        subplot(1,3,1);
+
+        t = trisurf(T2, coords(1,:)', coords(2,:)', zeros(mesh.nodes,1), modU);
 
         t.EdgeColor = 'None';
         shading interp
 
         hold on
 
-        quiver(coords(1,:)', coords(2,:)', X(u_dof), X(v_dof),'r');
+        quiver(coords(1,:)', coords(2,:)', X(dof.u), X(dof.v),'r');
 
         hold off
         view(2)
         axis([-.2 width+.2 -.2 height+.2]);
         c=colorbar('southoutside');
         ylabel(c,'Velocity');
-        caxis([minU, maxU]);
-        title(sprintf('Velocity field @ t=%g',time));
+        title('Velocity field');
 
         subplot(1,3,2);
-        t = trisurf(T, coords(1,:)', coords(2,:)', zeros(n_nodes,1), X(p_dof));
+        t = trisurf(T1, coords(1,corner_to_node)', coords(2,corner_to_node)', zeros(mesh.corners,1), X(dof.p));
         t.EdgeColor = 'None';
         shading interp
         c=colorbar('southoutside');
         ylabel(c,'Pressure');
         view(2)
-        caxis([minp, maxp]);
         axis([-.2 width+.2 -.2 height+.2]);
-        title('Pressure');
+        title(sprintf('Pressure @ t =%8.5fs',time));
 
         subplot(1,3,3);
-        t = trisurf(T, coords(1,:)', coords(2,:)', zeros(n_nodes,1), X(d_dof));
+        t = trisurf(T2, coords(1,:)', coords(2,:)', zeros(mesh.nodes,1), X(dof.d));
         t.EdgeColor = 'None';
         shading interp
         c=colorbar('southoutside');
         ylabel(c,'Concentration');
         view(2)
-        caxis([mind, maxd]);
         axis([-.2 width+.2 -.2 height+.2]);
         title('Concentration');
+        
         drawnow;
         pause(max(0,1/30-toc));
         time = time + dt;

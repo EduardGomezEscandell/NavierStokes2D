@@ -1,27 +1,22 @@
-function post_processing_single(coords, connect, X)
-    n_nodes = size(coords,2);
-    
-    u_dof = 1:n_nodes;
-    v_dof = n_nodes+1:2*n_nodes;
-    p_dof = 2*n_nodes+1:3*n_nodes;
-    d_dof = 3*n_nodes+1:4*n_nodes;
+function post_processing_single(coords, connect, mesh, dof, corner_to_node, X)  
     
     width = max(coords(1,:));
     height = max(coords(2,:));
-    modU = sqrt(X(u_dof).^2 + X(v_dof).^2);
+    modU = sqrt(X(dof.u).^2 + X(dof.v).^2);
     
-    T = delaunay(coords(1,:), coords(2,:));
+    T1 = delaunay(coords(1,corner_to_node), coords(2,corner_to_node));
+    T2 = delaunay(coords(1,:), coords(2,:));
     
     subplot(1,3,1);
 
-    t = trisurf(T, coords(1,:)', coords(2,:)', zeros(n_nodes,1), modU);
+    t = trisurf(T2, coords(1,:)', coords(2,:)', zeros(mesh.nodes,1), modU);
     
     t.EdgeColor = 'None';
     shading interp
 
     hold on
     
-    quiver(coords(1,:)', coords(2,:)', X(u_dof), X(v_dof),'r');
+    quiver(coords(1,:)', coords(2,:)', X(dof.u), X(dof.v),'r');
        
     hold off
     view(2)
@@ -31,7 +26,7 @@ function post_processing_single(coords, connect, X)
     title('Velocity field');
     
     subplot(1,3,2);
-    t = trisurf(T, coords(1,:)', coords(2,:)', zeros(n_nodes,1), X(p_dof));
+    t = trisurf(T1, coords(1,corner_to_node)', coords(2,corner_to_node)', zeros(mesh.corners,1), X(dof.p));
     t.EdgeColor = 'None';
     shading interp
     c=colorbar('southoutside');
@@ -41,7 +36,7 @@ function post_processing_single(coords, connect, X)
     title('Pressure');
     
     subplot(1,3,3);
-    t = trisurf(T, coords(1,:)', coords(2,:)', zeros(n_nodes,1), X(d_dof));
+    t = trisurf(T2, coords(1,:)', coords(2,:)', zeros(mesh.nodes,1), X(dof.d));
     t.EdgeColor = 'None';
     shading interp
     c=colorbar('southoutside');

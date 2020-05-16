@@ -58,7 +58,7 @@ function refelem = set_reference_element(degree)
             gradN{8} = @(x,y) (-1/2*[1-y^2-2*x+2*x*y^2, 2*x*y*(x-1)]');
             gradN{9} = @(x,y) ([2*x*(y^2-1), 2*y*(x^2-1)]');
             
-            gauss_x = [1,-1];% / sqrt(3);
+            gauss_x = [1,-1] / sqrt(3);
             gauss_w = [1, 1];
             refelem.gauss = [gauss_x; gauss_w];
             

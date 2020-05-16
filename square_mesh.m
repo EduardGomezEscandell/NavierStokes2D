@@ -1,4 +1,4 @@
-function [coords,connect] = square_mesh(width, height, x_elems, y_elems, degree)
+function [coords,connect, corner_to_node, node_to_corner] = square_mesh(width, height, x_elems, y_elems, degree)
     % Returns the coordinates and connectivities of a square mesh on domain
     % [0,width]x[0,height]
     
@@ -10,9 +10,19 @@ function [coords,connect] = square_mesh(width, height, x_elems, y_elems, degree)
     Y = linspace(0, height, nodes_per_col);
     
     coords = zeros(2, n_nodes);
+    
+    corner_to_node = [];
+    node_to_corner = zeros(1, n_nodes);
+    
     k = 1;
     for row=1:nodes_per_col
         for col=1:nodes_per_row
+            node_to_corner(k) = -1;
+            if mod(row,2) == 1 && mod(col,2)==1
+                corner_to_node(end+1) = k;
+                node_to_corner(k) = length(corner_to_node);
+            end
+            
             coords(:,k) = [X(col), Y(row)]';
             k = k + 1;
         end

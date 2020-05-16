@@ -1,49 +1,63 @@
-function [free_dof, X_history, H, e] =  boundary_conditions(coords, X_history, duration, omega)
-    
-    n_steps = size(X_history, 2);
-    n_nodes = size(coords, 2);
+function [free_dof, X_history, H, e] =  boundary_conditions(coords, X_history, mesh, node_to_corner, dof, duration, omega)
     
     width=max(coords(1,:));
     height=max(coords(2,:));
     
-    H = sparse(0,4*n_nodes);
-    e = sparse(0,n_steps);
+    H = sparse(0,mesh.dof);
+    e = sparse(0,mesh.steps+1);
     
     removed_dof = [];
     
-    t = linspace(0, duration, n_steps);
+    t = linspace(0, duration, mesh.steps+1);
     zero = zeros(size(t));
     one  = ones(size(t));
     sine = 1 + sin(omega*t - pi/2);
-    
-    for n = 1:n_nodes
+        
+    for n = 1:mesh.nodes                   % Quadratic BC
         X = coords(:,n);
         
-        % dof shorthands:
-        n_u = n;
-        n_v = n + n_nodes;
-        n_p = n + 2*n_nodes;
-        n_d = n + 3*n_nodes;
+        dof_u = dof.u(1) + n - 1;
+        dof_v = dof.v(1) + n - 1;
+        dof_p = dof.p(1) + node_to_corner(n) - 1;
+        dof_d = dof.d(1) + n - 1;
         
         if X(2) == 0 || X(2)==height
-            % Gamma 3 and 5
-            [removed_dof, X_history, H, e] = set_BC(removed_dof, X_history, H, e, n_u, zero);
-            [removed_dof, X_history, H, e] = set_BC(removed_dof, X_history, H, e, n_v, zero);
-        elseif X(1) == 0
-            % Gamma 1 and 2
-            [removed_dof, X_history, H, e] = set_BC(removed_dof, X_history, H, e, n_u, zero);
-            [removed_dof, X_history, H, e] = set_BC(removed_dof, X_history, H, e, n_v, sine);
-            [removed_dof, X_history, H, e] = set_BC(removed_dof, X_history, H, e, n_p, zero);
-            [removed_dof, X_history, H, e] = set_BC(removed_dof, X_history, H, e, n_d, one);
+            % Gamma 5 and 3 (h walls)
+            [removed_dof, X_history, H, e] = set_BC(removed_dof, X_history, H, e, dof_u, zero);
+            [removed_dof, X_history, H, e] = set_BC(removed_dof, X_history, H, e, dof_v, zero);
+            if node_to_corner(n) > 0 %( if n is a corner)
+%                 [removed_dof, X_history, H, e] = set_BC(removed_dof, X_history, H, e, dof_p, one);
+            end
+        elseif X(1) == 0 && X(2) < height/2
+            % Gamma 1 (bottom left)
+            [removed_dof, X_history, H, e] = set_BC(removed_dof, X_history, H, e, dof_u, zero);
+            [removed_dof, X_history, H, e] = set_BC(removed_dof, X_history, H, e, dof_v, zero);
+            [removed_dof, X_history, H, e] = set_BC(removed_dof, X_history, H, e, dof_d, one);
+            if node_to_corner(n) > 0 %( if n is a corner)
+%                 [removed_dof, X_history, H, e] = set_BC(removed_dof, X_history, H, e, dof_p, one);
+            end
+        elseif X(1) == 0 && X(2) >= height/2
+            % Gamma 2 (top left)
+            [removed_dof, X_history, H, e] = set_BC(removed_dof, X_history, H, e, dof_u, zero);
+            [removed_dof, X_history, H, e] = set_BC(removed_dof, X_history, H, e, dof_v, zero);
+            [removed_dof, X_history, H, e] = set_BC(removed_dof, X_history, H, e, dof_d, one);
+            if node_to_corner(n) > 0 %( if n is a corner)
+%                 [removed_dof, X_history, H, e] = set_BC(removed_dof, X_history, H, e, dof_p, one);
+            end
         elseif X(1) == width
-            % Gamma 4
-            [removed_dof, X_history, H, e] = set_BC(removed_dof, X_history, H, e, n_u, zero);
-            [removed_dof, X_history, H, e] = set_BC(removed_dof, X_history, H, e, n_v, zero);
-            [removed_dof, X_history, H, e] = set_BC(removed_dof, X_history, H, e, n_d, zero);
+            % Gamma 4 (right wall)
+            [removed_dof, X_history, H, e] = set_BC(removed_dof, X_history, H, e, dof_u, zero);
+            [removed_dof, X_history, H, e] = set_BC(removed_dof, X_history, H, e, dof_v, zero);
+            [removed_dof, X_history, H, e] = set_BC(removed_dof, X_history, H, e, dof_d, zero);
+            if node_to_corner(n) > 0 %( if n is a corner)
+%                 [removed_dof, X_history, H, e] = set_BC(removed_dof, X_history, H, e, dof_p, one);
+            end
         end
     end
+    
+    [removed_dof, X_history, H, e] = set_BC(removed_dof, X_history, H, e, dof.p(1), one);
 
-    free_dof = 1:4*n_nodes;
+    free_dof = 1:mesh.dof;
     free_dof(removed_dof) = [];
 end
 

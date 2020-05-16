@@ -1,27 +1,29 @@
-function [M, K, K1, K21, K22, C1, C21, C22, L, SUPG] = elemental_matrix_assembly(connect, coords, X, visc, refelem, mu, theta, dt) 
+function [M, K, K1, K21, K22, C1, C21, C22, SUPG] = elemental_matrix_assembly(connect, coords, X, mesh, dof, visc, refelem, mu, theta, dt) 
         
         n_elems = size(connect,2);
         n_nodes = size(coords,2); 
 
-        M   = sparse(n_nodes,n_nodes);
-        SUPG= sparse(n_nodes,n_nodes);
+        M   = sparse(mesh.nodes,mesh.nodes);
+        SUPG= sparse(mesh.nodes,mesh.nodes);
         
-        K   = sparse(n_nodes,n_nodes);
-        L   = sparse(n_nodes,n_nodes);
-        K1  = sparse(n_nodes,n_nodes);
-        K21 = sparse(n_nodes,n_nodes);
-        K22 = sparse(n_nodes,n_nodes);
+        K   = sparse(mesh.nodes,mesh.nodes);
+        K1  = sparse(mesh.nodes,mesh.nodes);
+        K21 = sparse(mesh.nodes,mesh.nodes);
+        K22 = sparse(mesh.nodes,mesh.nodes);
         
-        C1  = sparse(n_nodes,n_nodes);
-        C21 = sparse(n_nodes,n_nodes);
-        C22 = sparse(n_nodes,n_nodes);
+        C1  = sparse(mesh.nodes,mesh.nodes);
+        C21 = sparse(mesh.nodes,mesh.nodes);
+        C22 = sparse(mesh.nodes,mesh.nodes);
         
         for el=1:n_elems
             nodes = connect(:,el);
             local_coordinates = coords(:, nodes);
             
-            x  = [ X(nodes), X(nodes+n_nodes), X(nodes+2*nodes), X(nodes+3*nodes)];
-            v = visc(nodes);
+            x = [X(dof.u(1) + nodes-1),  ...
+                 X(dof.v(1) + nodes-1),  ...
+                 X(dof.p(1) + nodes-1),  ...
+                 X(dof.d(1) + nodes-1)];
+                 v = visc(nodes);
                   
             local_mat = FEM_matrices(local_coordinates, refelem, x, v, mu, theta, dt);
             
@@ -40,7 +42,6 @@ function [M, K, K1, K21, K22, C1, C21, C22, L, SUPG] = elemental_matrix_assembly
             C22(nodes,nodes) = C22(nodes,nodes) + local_mat.C22;
             
             % Stabilization matrices
-            L(nodes,nodes) = L(nodes,nodes) + local_mat.L;
             SUPG(nodes,nodes) = SUPG(nodes,nodes) + local_mat.supg;
         end
 end
