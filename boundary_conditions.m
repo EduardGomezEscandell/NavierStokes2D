@@ -1,4 +1,4 @@
-function [free_dof, X_history, H, e] =  boundary_conditions(coords, X_history, mesh, node_to_corner, dof, duration, omega)
+function [X_history, H, e] =  boundary_conditions(coords, X_history, mesh, node_to_corner, dof, duration, omega)
     
     width=max(coords(1,:));
     height=max(coords(2,:));
@@ -19,46 +19,30 @@ function [free_dof, X_history, H, e] =  boundary_conditions(coords, X_history, m
         dof_u = dof.u(1) + n - 1;
         dof_v = dof.v(1) + n - 1;
         dof_p = dof.p(1) + node_to_corner(n) - 1;
-        dof_d = dof.d(1) + n - 1;
+        dof_d = dof.d(1) + node_to_corner(n) - 1;
         
-        if X(2) == 0 || X(2)==height
-            % Gamma 5 and 3 (h walls)
+        if X(2) == 0 || X(2)==height || X(1) == 0 && X(2) < height/2
+            % Gamma 5, 3 and 1 (walls)
             [removed_dof, X_history, H, e] = set_BC(removed_dof, X_history, H, e, dof_u, zero);
             [removed_dof, X_history, H, e] = set_BC(removed_dof, X_history, H, e, dof_v, zero);
-            if node_to_corner(n) > 0 %( if n is a corner)
-%                 [removed_dof, X_history, H, e] = set_BC(removed_dof, X_history, H, e, dof_p, one);
-            end
-        elseif X(1) == 0 && X(2) < height/2
-            % Gamma 1 (bottom left)
-            [removed_dof, X_history, H, e] = set_BC(removed_dof, X_history, H, e, dof_u, zero);
-            [removed_dof, X_history, H, e] = set_BC(removed_dof, X_history, H, e, dof_v, zero);
-            [removed_dof, X_history, H, e] = set_BC(removed_dof, X_history, H, e, dof_d, one);
-            if node_to_corner(n) > 0 %( if n is a corner)
-%                 [removed_dof, X_history, H, e] = set_BC(removed_dof, X_history, H, e, dof_p, one);
-            end
+            
         elseif X(1) == 0 && X(2) >= height/2
-            % Gamma 2 (top left)
-            [removed_dof, X_history, H, e] = set_BC(removed_dof, X_history, H, e, dof_u, zero);
+            % Gamma 2 (top left inlet)
+            [removed_dof, X_history, H, e] = set_BC(removed_dof, X_history, H, e, dof_u, one);
             [removed_dof, X_history, H, e] = set_BC(removed_dof, X_history, H, e, dof_v, zero);
-            [removed_dof, X_history, H, e] = set_BC(removed_dof, X_history, H, e, dof_d, one);
             if node_to_corner(n) > 0 %( if n is a corner)
-%                 [removed_dof, X_history, H, e] = set_BC(removed_dof, X_history, H, e, dof_p, one);
+%                 [removed_dof, X_history, H, e] = set_BC(removed_dof, X_history, H, e, dof_d, one);
             end
+            
         elseif X(1) == width
-            % Gamma 4 (right wall)
-            [removed_dof, X_history, H, e] = set_BC(removed_dof, X_history, H, e, dof_u, zero);
-            [removed_dof, X_history, H, e] = set_BC(removed_dof, X_history, H, e, dof_v, zero);
-            [removed_dof, X_history, H, e] = set_BC(removed_dof, X_history, H, e, dof_d, zero);
+            % Gamma 4 (right outlet)
+%             [removed_dof, X_history, H, e] = set_BC(removed_dof, X_history, H, e, dof_v, zero);
             if node_to_corner(n) > 0 %( if n is a corner)
-%                 [removed_dof, X_history, H, e] = set_BC(removed_dof, X_history, H, e, dof_p, one);
+                [removed_dof, X_history, H, e] = set_BC(removed_dof, X_history, H, e, dof_p, one);
+%                 [removed_dof, X_history, H, e] = set_BC(removed_dof, X_history, H, e, dof_d, zero);
             end
         end
     end
-    
-    [removed_dof, X_history, H, e] = set_BC(removed_dof, X_history, H, e, dof.p(1), one);
-
-    free_dof = 1:mesh.dof;
-    free_dof(removed_dof) = [];
 end
 
 

@@ -1,8 +1,12 @@
 function refelem = set_reference_element(degree)
+    gauss_x = [-1,1] / sqrt(3);
+    gauss_w = [1,1];
+    refelem.gauss = [gauss_x; gauss_w];
+    refelem.weights = ones(2);
+    
     switch degree
         case 1
             refelem.order = 1;
-            refelem.shape = 'Q';
             refelem.jacobian = @jacobian4;
             
             N{1} = @(x,y)((1-x)*(1-y)/4);
@@ -14,11 +18,6 @@ function refelem = set_reference_element(degree)
             gradN{2} = @(x,y)([ (1-y)/4, -(1+x)/4]');
             gradN{3} = @(x,y)([ (1+y)/4,  (1+x)/4]');
             gradN{4} = @(x,y)([-(1+y)/4,  (1-x)/4]');
-            
-            gauss_x = [-1,1] / sqrt(3);
-            gauss_w = [1,1];
-            refelem.gauss = [gauss_x; gauss_w];
-            refelem.weights = ones(2);
             
             p = 1;
             for xi = gauss_x                
@@ -33,7 +32,6 @@ function refelem = set_reference_element(degree)
             
         case 2
             refelem.order = 2;
-            refelem.shape = 'Q';
             refelem.jacobian = @jacobian4;
             
             % Shape functions
@@ -57,10 +55,6 @@ function refelem = set_reference_element(degree)
             gradN{7} = @(x,y) (1/2*[-2*x*y*(y+1), 1+2*y-x^2-2*x^2*y]');
             gradN{8} = @(x,y) (-1/2*[1-y^2-2*x+2*x*y^2, 2*x*y*(x-1)]');
             gradN{9} = @(x,y) ([2*x*(y^2-1), 2*y*(x^2-1)]');
-            
-            gauss_x = [1,-1] / sqrt(3);
-            gauss_w = [1, 1];
-            refelem.gauss = [gauss_x; gauss_w];
             
             p = 1;
             for xi = gauss_x                

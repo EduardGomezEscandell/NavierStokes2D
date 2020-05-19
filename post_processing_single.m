@@ -36,7 +36,7 @@ function post_processing_single(coords, connect, mesh, dof, corner_to_node, X)
     title('Pressure');
     
     subplot(1,3,3);
-    t = trisurf(T2, coords(1,:)', coords(2,:)', zeros(mesh.nodes,1), X(dof.d));
+    t = trisurf(T1, coords(1,corner_to_node)', coords(2,corner_to_node)', zeros(mesh.corners,1), X(dof.d));
     t.EdgeColor = 'None';
     shading interp
     c=colorbar('southoutside');
