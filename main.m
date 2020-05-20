@@ -1,5 +1,5 @@
 clear variables;
-clc;
+clc; addpath('Post-processing');
 %% Data entry
 
 % Phisical data
@@ -7,13 +7,13 @@ width = 2;
 height = 3;
 duration = 5;
 
-visc0 = 1;
+visc0 = 100;
 mu = 1;
 omega = 1;
 
 % Discretization
-x_elems = 8;
-y_elems = 12;
+x_elems = 10;
+y_elems = 15;
 
 mesh.steps = 10;
 theta = 1/2;
@@ -23,6 +23,9 @@ method = 1;
 % 1: Picard
 % 2: Newton-Raphson
 
+boundary_method = 1; 
+% 1: row elimination
+% 2: penalty method
 penalty = 1e8;
 
 stabilize_pressure = false;
@@ -42,8 +45,10 @@ quadra_elem = set_reference_element(2);
 mesh.nodes = size(coords,2);
 mesh.corners = (x_elems+1) * (y_elems+1);
 mesh.elems = size(connect,2);
+mesh.rows = y_elems;
+mesh.cols = x_elems;
 
-dof.u = 1:mesh.nodes;
+dof.u =               1:mesh.nodes;
 dof.v = dof.u(end) + (1:mesh.nodes);
 dof.p = dof.v(end) + (1:mesh.corners);
 dof.d = dof.p(end) + (1:mesh.corners);
@@ -58,84 +63,87 @@ h = sqrt(mean_area);
 X_history = zeros(mesh.dof, mesh.steps+1);
 
 %% Selecting boundary conditions
-[X_history, H, e] =  boundary_conditions(coords, X_history, mesh, node_to_corner, dof, duration, omega);
+[removed_dof, dirichlet_matrix, H, e] =  boundary_conditions(coords, mesh, node_to_corner, dof, duration, omega);
 
 %% Solver
+% Constant terms
+[K0, M1, M12, M2, G1, G2] = assemble_constant(coords, connect, mesh, node_to_corner, linear_elem, quadra_elem);
 
-for step = 2:mesh.steps+1
-    %% Previous step info
-    % Calculating all terms that are a function of X^{n-1}
-    
-    X = X_history(:,step-1);
-    
-    source = get_source(X(dof.u), X(dof.v));
-    visc = get_viscosity(X(dof.d), visc0);
-    
-    b1 = zeros(mesh.nodes,1);
-    b2 = zeros(mesh.nodes,1);
-    d_non_iter = zeros(mesh.corners,1);
-    
-    K0  = sparse(mesh.corners,mesh.corners);
-    M1 = sparse(mesh.corners,mesh.corners);
-    M12 = sparse(mesh.corners,mesh.nodes);
-    M2 = sparse(mesh.nodes,mesh.nodes);
-    G1 = sparse(mesh.corners,mesh.nodes);
-    G2 = sparse(mesh.corners,mesh.nodes);
-    
-    for el=1:mesh.elems
-        nodes = connect(:,el);
-        corners = node_to_corner(nodes(1:4));
-        local_coords = coords(:,nodes);
-        
-        vel = [X(dof.u(1) + nodes-1),  X(dof.v(1) + nodes-1)];
-        pres = X(dof.p(1) + corners-1);
-        conc = X(dof.d(1) + corners-1);
-        
-        v = visc(corners);
-        s = source(nodes);
-        
-        [m1, m12, m2, k, K1, C1, g1, g2] = non_iterated_arrays(local_coords, vel, v, linear_elem, quadra_elem);
-        
-        b = (m2 + dt*(1-theta)*K1);
-        d = (m1 - dt*(1-theta)*(C1 + mu*k));
-        
-        b1(nodes) = b1(nodes) + b * vel(:,1) + dt * (1-theta)*g1'*pres;
-        b2(nodes) = b2(nodes) + b * vel(:,2) + dt * (1-theta)*g2'*pres;
-        
-        d_non_iter(corners)  =  d_non_iter(corners) ...
-                  + d*conc + dt * (1-theta)*m12*s;
-        
-        K0(corners,corners) = K0(corners,corners) + k;
-        
-        M1(corners,corners) = M1(corners,corners) + m1;
-        M12(corners,nodes) =  M12(corners,nodes) + m12;
-        M2(nodes,nodes)     = M2(nodes,nodes) + m2;
-              
-        G1(corners,nodes) = G1(corners,nodes) + g1;
-        G2(corners,nodes) = G2(corners,nodes) + g2;
-    end
-    
+% Terms evaluated at step 1
+X = X_history(1:dof.d-1,1);
+visc = get_viscosity(X(dof.p), visc0);
+source = get_source(X(dof.u), X(dof.v));
+[K1,~,~, C1,~,~,~] = assemble_iterated(connect, coords, node_to_corner, X, mesh, dof, visc, linear_elem, quadra_elem, mu, theta, dt);
+
+
+%% TEST STEADY STATE
+Z1  = sparse(mesh.corners,mesh.corners);
+Z12 = sparse(mesh.nodes,mesh.corners);
+Z2  = sparse(mesh.nodes,mesh.nodes);
+
+u_dirichlet_id = removed_dof(removed_dof >= dof.u(1));
+u_dirichlet_id = u_dirichlet_id(u_dirichlet_id <= dof.u(end));
+
+v_dirichlet_id = removed_dof(removed_dof >= dof.v(1));
+v_dirichlet_id = v_dirichlet_id(v_dirichlet_id <= dof.v(end));
+
+U_dirichlet = zeros(mesh.nodes,1);
+V_dirichlet = zeros(mesh.nodes,1);
+
+U_dirichlet(u_dirichlet_id) = e(1:length(u_dirichlet_id),1);
+V_dirichlet(v_dirichlet_id - mesh.nodes) = e(length(u_dirichlet_id)+(1:length(v_dirichlet_id)),1);
+
+h = G1*U_dirichlet + G2*V_dirichlet;
+
+K = [ K1  Z2  G1'
+      Z2  K1  G2'
+      G1  G2  Z1];
+  
+F = [zeros(2*mesh.nodes,1);
+           h              ];
+
+
+
+
+if boundary_method==1
+    K(removed_dof,:) = sparse(length(removed_dof),mesh.dof-mesh.corners);
+    K = K + dirichlet_matrix;
+    F(removed_dof) = e(:,1);
+else
+    H = H(:,1:(dof.d(1) - 1));
+    K = K + penalty * (H'*H);
+    F = F + penalty*H'*(e(:,1));
+end
+
+X = K\F;
+
+post_processing_single(coords, connect, mesh, dof, corner_to_node, X) 
+%% END OF TEST
+
+for step = 1:mesh.steps
     %% Main iteration loop
-    % Calculating all terms that are a function of X^{n}
-    
-    X = X_history(:,step);
+    % Storing all terms that are a function of X^{n-1}
+    C1_old = C1;
+    K1_old = K1;
+    source_old = source;
     
     for iter=1:maxIter
         %% Assembling elemental matrices
         source = get_source(X(dof.u), X(dof.v));
-        visc = get_viscosity(X(dof.d), visc0);
-        % a = max(modU);
+        visc = get_viscosity(X(dof.p), visc0);
         
-        [K1, K21, K22, C1, C21, C22, supg] = elemental_matrix_assembly(connect, coords, node_to_corner, X, mesh, dof, visc, linear_elem, quadra_elem, mu, theta, dt);
+        [K1, K21, K22, C1, C21, C22, supg] = assemble_iterated(connect, coords, node_to_corner, X, mesh, dof, visc, linear_elem, quadra_elem, mu, theta, dt);
         
         %% Assembling global system
-        
         A = M2 + dt*theta*K1;
         T1 = dt*theta*G1';
         T2 = dt*theta*G2';
+        b1 = (M2 + dt*(1-theta)*K1_old) * X(dof.u) + dt*(1-theta)*G1'*X(dof.p);
+        b2 = (M2 + dt*(1-theta)*K1_old) * X(dof.v) + dt*(1-theta)*G2'*X(dof.p);
         
-        B = M1 + dt*theta*(C1 + mu*K0);
-        d = d_non_iter + dt * theta * M12 * source;
+%         B = M1 + dt*theta*(C1 + mu*K0);
+%         d = (M1 - dt*(1-theta)*(C1_old + mu*K0))*X(dof.d) + ...
+%                               dt*(theta*M12*source + (1-theta)*M12*source_old);
         
         % Empty matrices of appropiate sizes
         Z1  = sparse(mesh.corners,mesh.corners);
@@ -168,20 +176,26 @@ for step = 2:mesh.steps+1
 
         
         %% Boundary condition enforcement
-        H = H(:,1:(dof.d(1) - 1));
-        
-        K = K + penalty * (H'*H);
-        F = F - penalty*H'*(e(:,step));
+        if boundary_method==1
+            K(removed_dof,:) = sparse(length(removed_dof),mesh.dof-mesh.corners);
+            K = K + dirichlet_matrix;
+            F(removed_dof) = e(:,step);
+        else
+            H = H(:,1:(dof.d(1) - 1));
+
+            K = K + penalty * (H'*H);
+            F = F - penalty*H'*(e(:,step));
+        end
         
         %% Obtaining residual and error
         
-        R = F - K*X(1:(dof.d(1) - 1));
+        R = F - K*X;
         error = norm(R);
 
         post_processing_single(coords, connect, mesh, dof, corner_to_node, X);
         fprintf('Error = %g\n',error);
 
-        [Pe_global, Pe] = get_peclet(coords, connect, X, linear_elem, mu);
+%         [Pe_global, Pe] = get_peclet(coords, connect, X, linear_elem, mu);
 
         if error < tol
             break;
@@ -189,17 +203,9 @@ for step = 2:mesh.steps+1
         
         %% Calculating next X
         
-        if method==1    % Picard
-            X_new = K\F;
-        else            % Newton-Rhapson
-%             % Calculating jacobian
-%             J = calc_jacobian(coords, visc0, theta, dt, X, K21, K22, C21, C22, G1, G2, T1, T2, M2, A, B);
-% 
-%             % Newton Raphson
-%             X_new = X - (J \ R);
-        end
+        X_new = K\F;
         
-        X = (1-relaxation)*X + relaxation*X_new;
+        X = X + relaxation * (X_new-X);
         
     end
     %% Preparing next step
@@ -212,7 +218,7 @@ for step = 2:mesh.steps+1
         fprintf('Step %3d of %3d completed\n',step, mesh.steps);
     end
     
-    X_history(:,step) = X;
+    X_history(:,step+1) = X;
 end
 fprintf('Step %3d of %3d completed\n',mesh.steps, mesh.steps);
 

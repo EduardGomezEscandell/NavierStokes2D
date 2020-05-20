@@ -1,12 +1,10 @@
-function [M1, M12, M2, K, K1, C1, G1, G2] = non_iterated_arrays(local_coords, vel, visc, linear_elem, quadra_elem)
+function [M1, M12, M2, K, G1, G2] = FEM_constant(local_coords, linear_elem, quadra_elem)
     % Linear
     M1 = zeros(4,4);
     K = zeros(4,4);
-    C1 = zeros(4,4);
     
     % Quadratic
     M2 = zeros(9,9);
-    K1 = zeros(9,9);
     
     % Hybrid
     M12 = zeros(4,9);
@@ -43,13 +41,9 @@ function [M1, M12, M2, K, K1, C1, G1, G2] = non_iterated_arrays(local_coords, ve
             % Diffusion
             K  =  K  + w * (gradN1' * gradN1);
             
-            % Convection
-            K1 = K1  + w * gradN2' * (N1*visc) * gradN2;
-            C1 = C1  + w * N1' * ((N2*vel * gradN1));
-            
             % G
-            G1 = G1 - w * N1' * gradN2(1,:);
-            G2 = G2 - w * N1' * gradN2(2,:);
+            G1 = G1 - w * gradN1(1,:)' * N2;
+            G2 = G2 - w * gradN1(2,:)' * N2;
         end
     end
 
@@ -58,8 +52,6 @@ function [M1, M12, M2, K, K1, C1, G1, G2] = non_iterated_arrays(local_coords, ve
     M12 = M12 * detJ;
     M2  =  M2 * detJ;
     K  =  K * detJ;
-    K1 = K1 * detJ;
-    C1 = C1 * detJ;
     G1 = G1 * detJ;
     G2 = G2 * detJ;
 end

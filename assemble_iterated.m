@@ -1,4 +1,4 @@
-function [K1, K21, K22, C1, C21, C22, SUPG] = elemental_matrix_assembly(connect, coords, node_to_corner, X, mesh, dof, visc, linear_elem, quadra_elem, mu, theta, dt) 
+function [K1, K21, K22, C1, C21, C22, SUPG] = assemble_iterated(connect, coords, node_to_corner, X, mesh, dof, visc, linear_elem, quadra_elem, mu, theta, dt) 
 
         SUPG= sparse(mesh.nodes,mesh.nodes);
         
@@ -16,11 +16,10 @@ function [K1, K21, K22, C1, C21, C22, SUPG] = elemental_matrix_assembly(connect,
             local_coords = coords(:, nodes);
             
             vel = [X(dof.u(1) + nodes-1),  X(dof.v(1) + nodes-1)];
-            pres = X(dof.p(1) + corners-1);
-            conc = X(dof.d(1) + corners-1);
+            conc = 0; %X(dof.d(1) + corners-1);
             v = visc(corners);
                   
-            local_mat = FEM_matrices(local_coords, vel, conc, v, mu, theta, dt, linear_elem, quadra_elem);
+            local_mat = FEM_iterated(local_coords, vel, conc, v, mu, theta, dt, linear_elem, quadra_elem);
             
             % Difusion matrices
             K1(nodes,nodes)  = K1(nodes,nodes)  + local_mat.K1;

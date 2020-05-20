@@ -1,4 +1,4 @@
-function local_mat = FEM_matrices(local_coords, vel, conc, visc, mu, theta, dt, linear_elem, quadra_elem)
+function local_mat = FEM_iterated(local_coords, vel, conc, visc, mu, theta, dt, linear_elem, quadra_elem)
     % First Order
     L = zeros(4,4);
     supg = zeros(4,4);
