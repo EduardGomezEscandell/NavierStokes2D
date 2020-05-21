@@ -15,31 +15,20 @@ function post_processing_single(coords, connect, mesh, dof, corner_to_node, X)
 
     hold on
     
+    plotU = reshape(X(dof.u),[mesh.cols*2+1, mesh.rows*2+1])';
+    plotV = reshape(X(dof.v),[mesh.cols*2+1, mesh.rows*2+1])';
+    
+    n_lines = 5;
+    xstart = zeros(n_lines,1);
+    ystart = linspace(height/2, height, n_lines);
+    smline = streamline(plotX, plotY, plotU, plotV, xstart, ystart);
+    set(smline,'Color','k'); 
+    
     quiver(coords(1,:)', coords(2,:)', X(dof.u), X(dof.v),'r');
-%     
-%     streamX = zeros(mesh.cols, mesh.rows);
-%     streamY = zeros(mesh.cols, mesh.rows);
-%     streamU = zeros(mesh.cols, mesh.rows);
-%     streamV = zeros(mesh.cols, mesh.rows);
-%     n_lines = 10;
-%     xstart = width * ones(n_lines,1);
-%     ystart = linspace(0, height, n_lines);
-%     s = 1;
-%     for i = 1:(2*mesh.rows+1)
-%         for j = 1:(2*mesh.cols+1)
-%            streamX(i,j) = coords(1,s);
-%            streamY(i,j) = coords(2,s);
-%            streamU(i,j) = X(dof.u(1) + s - 1);
-%            streamV(i,j) = X(dof.v(1) + s - 1);
-%            s = s + 1;
-%         end
-%     end
-%     
-%     streamline(streamX, streamY, -streamU, -streamV, xstart, ystart);
        
     hold off
     view(2)
-    axis([-.2 width+.2 -.2 height+.2]);
+%     axis([-.2 width+.2 -.2 height+.2]);
     c=colorbar('southoutside');
     ylabel(c,'Velocity');
     title('Velocity field');
@@ -49,15 +38,15 @@ function post_processing_single(coords, connect, mesh, dof, corner_to_node, X)
     plotX = reshape(coords(1,corner_to_node),[mesh.cols+1, mesh.rows+1])';
     plotY = reshape(coords(2,corner_to_node),[mesh.cols+1, mesh.rows+1])';
     plotP = reshape(X(dof.p),[mesh.cols+1, mesh.rows+1])';
-    t = surf(plotX, plotY, zeros(size(plotX)), plotP);  
+    t = surf(plotX, plotY, plotP, plotP);  
     t.EdgeColor = 'None';
     shading interp
     c=colorbar('southoutside');
     ylabel(c,'Pressure');
     view(2)
-    axis([-.2 width+.2 -.2 height+.2]);
+%     axis([-.2 width+.2 -.2 height+.2]);
     title('Pressure');
-    axis equal
+%     axis equal
     
 %     subplot(1,3,3);
 %     t = trisurf(T1, coords(1,corner_to_node)', coords(2,corner_to_node)', zeros(mesh.corners,1), X(dof.d));

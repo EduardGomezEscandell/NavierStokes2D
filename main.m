@@ -7,15 +7,15 @@ width = 2;
 height = 3;
 duration = 5;
 
-visc0 = 100;
+visc0 = 1;
 mu = 1;
-omega = 1;
+omega = 4;
 
 % Discretization
 x_elems = 10;
 y_elems = 15;
 
-mesh.steps = 10;
+mesh.steps = 100;
 theta = 1/2;
 
 % Numerical parameters
@@ -37,9 +37,17 @@ tol = 1e-8;
 relaxation = 1;
 
 %% Generating mesh
-[coords,connect, corner_to_node, node_to_corner] = square_mesh(width, height, x_elems, y_elems, 2);
-linear_elem = set_reference_element(1);
-quadra_elem = set_reference_element(2);
+Gamma_test{1} = @(X)(X(1) == 0 && X(2) < height/2 && X(2) > 0);
+Gamma_test{2} = @(X)(X(1) == 0 && X(2) >= height/2  && X(2) <= height);
+Gamma_test{3} = @(X)(X(2) == height && X(1) >0 && X(1) < width);
+Gamma_test{4} = @(X)(X(1) == width);
+Gamma_test{5} = @(X)(X(2) == 0 && X(1) >0 && X(1) < width);
+[coords,connect, corner_to_node, node_to_corner, Gamma] = square_mesh(width, height, x_elems, y_elems, Gamma_test);
+
+refelem.L1 = set_reference_element(1,1); % Linear 1D element
+refelem.L2 = set_reference_element(1,2); % Quadratic 1D element
+refelem.Q1 = set_reference_element(2,1); % Linear 2D quad element
+refelem.Q2 = set_reference_element(2,2); % Quadraic 2D quad element
 
 %% Shorthand notation
 mesh.nodes = size(coords,2);
@@ -63,61 +71,49 @@ h = sqrt(mean_area);
 X_history = zeros(mesh.dof, mesh.steps+1);
 
 %% Selecting boundary conditions
-[removed_dof, dirichlet_matrix, H, e] =  boundary_conditions(coords, mesh, node_to_corner, dof, duration, omega);
+bc_data =  boundary_conditions(coords, mesh, Gamma, node_to_corner, dof, duration, omega);
 
 %% Solver
 % Constant terms
-[K0, M1, M12, M2, G1, G2] = assemble_constant(coords, connect, mesh, node_to_corner, linear_elem, quadra_elem);
+[K0, M1, M12, M2, G1, G2] = assemble_constant(coords, connect, mesh, node_to_corner, refelem, Gamma);
 
 % Terms evaluated at step 1
 X = X_history(1:dof.d-1,1);
 visc = get_viscosity(X(dof.p), visc0);
 source = get_source(X(dof.u), X(dof.v));
-[K1,~,~, C1,~,~,~] = assemble_iterated(connect, coords, node_to_corner, X, mesh, dof, visc, linear_elem, quadra_elem, mu, theta, dt);
+[K1,~,~, C1,~,~,~] = assemble_iterated(connect, coords, node_to_corner, X, mesh, dof, Gamma, refelem, visc, mu, theta, dt);
 
 
 %% TEST STEADY STATE
-Z1  = sparse(mesh.corners,mesh.corners);
-Z12 = sparse(mesh.nodes,mesh.corners);
-Z2  = sparse(mesh.nodes,mesh.nodes);
+% Z1  = sparse(mesh.corners,mesh.corners);
+% Z12 = sparse(mesh.nodes,mesh.corners);
+% Z2  = sparse(mesh.nodes,mesh.nodes);
+% 
+% K = [ K1  Z2 G1'
+%       Z2  K1 G2'
+%       G1 G2  Z1];
+% 
+% % f1 = M12' * bc_data.P_neumann(:,1);
+% % f2 = M12' * bc_data.P_neumann(:,1);
+% h = G1 * bc_data.U_dirichlet(:,1) + G2 * bc_data.V_dirichlet(:,1);
+% % 
+% F = [zeros(2*mesh.nodes,1); h];
+% % F = zeros(mesh.dof - mesh.corners, 1);
+% % 
+% if boundary_method==1
+%     K(bc_data.removed_dof,:) = sparse(bc_data.n_removed,mesh.dof-mesh.corners);
+%     K = K + bc_data.dirichlet_matrix;
+%     F(bc_data.removed_dof) = 0;
+%     F = F + [bc_data.U_dirichlet(:,1); bc_data.V_dirichlet(:,1); bc_data.P_neumann(:,1)];
+% else
+%     bc_data.H = bc_data.H(:,1:(dof.d(1) - 1));
+%     K = K + penalty * (bc_data.H'*bc_data.H);
+%     F = F + penalty * bc_data.H'*(bc_data.e(:,1));
+% end
+% 
+% X = K\F;
 
-u_dirichlet_id = removed_dof(removed_dof >= dof.u(1));
-u_dirichlet_id = u_dirichlet_id(u_dirichlet_id <= dof.u(end));
-
-v_dirichlet_id = removed_dof(removed_dof >= dof.v(1));
-v_dirichlet_id = v_dirichlet_id(v_dirichlet_id <= dof.v(end));
-
-U_dirichlet = zeros(mesh.nodes,1);
-V_dirichlet = zeros(mesh.nodes,1);
-
-U_dirichlet(u_dirichlet_id) = e(1:length(u_dirichlet_id),1);
-V_dirichlet(v_dirichlet_id - mesh.nodes) = e(length(u_dirichlet_id)+(1:length(v_dirichlet_id)),1);
-
-h = G1*U_dirichlet + G2*V_dirichlet;
-
-K = [ K1  Z2  G1'
-      Z2  K1  G2'
-      G1  G2  Z1];
-  
-F = [zeros(2*mesh.nodes,1);
-           h              ];
-
-
-
-
-if boundary_method==1
-    K(removed_dof,:) = sparse(length(removed_dof),mesh.dof-mesh.corners);
-    K = K + dirichlet_matrix;
-    F(removed_dof) = e(:,1);
-else
-    H = H(:,1:(dof.d(1) - 1));
-    K = K + penalty * (H'*H);
-    F = F + penalty*H'*(e(:,1));
-end
-
-X = K\F;
-
-post_processing_single(coords, connect, mesh, dof, corner_to_node, X) 
+% post_processing_single(coords, connect, mesh, dof, corner_to_node, X) 
 %% END OF TEST
 
 for step = 1:mesh.steps
@@ -132,7 +128,7 @@ for step = 1:mesh.steps
         source = get_source(X(dof.u), X(dof.v));
         visc = get_viscosity(X(dof.p), visc0);
         
-        [K1, K21, K22, C1, C21, C22, supg] = assemble_iterated(connect, coords, node_to_corner, X, mesh, dof, visc, linear_elem, quadra_elem, mu, theta, dt);
+        [K1, K21, K22, C1, C21, C22, supg] = assemble_iterated(connect, coords, node_to_corner, X, mesh, dof, Gamma, refelem, visc, mu, theta, dt);
         
         %% Assembling global system
         A = M2 + dt*theta*K1;
@@ -177,14 +173,14 @@ for step = 1:mesh.steps
         
         %% Boundary condition enforcement
         if boundary_method==1
-            K(removed_dof,:) = sparse(length(removed_dof),mesh.dof-mesh.corners);
-            K = K + dirichlet_matrix;
-            F(removed_dof) = e(:,step);
+            K(bc_data.removed_dof,:) = sparse(bc_data.n_removed,mesh.dof-mesh.corners);
+            K = K + bc_data.dirichlet_matrix;
+            F(bc_data.removed_dof) = 0;
+            F = F + [bc_data.U_dirichlet(:,step);
+                     bc_data.V_dirichlet(:,step);
+                     bc_data.P_neumann(:,step)  ];
         else
-            H = H(:,1:(dof.d(1) - 1));
-
-            K = K + penalty * (H'*H);
-            F = F - penalty*H'*(e(:,step));
+            % Nope
         end
         
         %% Obtaining residual and error
@@ -192,8 +188,8 @@ for step = 1:mesh.steps
         R = F - K*X;
         error = norm(R);
 
-        post_processing_single(coords, connect, mesh, dof, corner_to_node, X);
-        fprintf('Error = %g\n',error);
+%         post_processing_single(coords, connect, mesh, dof, corner_to_node, X);
+%         fprintf('Error = %g\n',error);
 
 %         [Pe_global, Pe] = get_peclet(coords, connect, X, linear_elem, mu);
 
@@ -218,7 +214,7 @@ for step = 1:mesh.steps
         fprintf('Step %3d of %3d completed\n',step, mesh.steps);
     end
     
-    X_history(:,step+1) = X;
+    X_history(1:dof.d(1)-1,step+1) = X;
 end
 fprintf('Step %3d of %3d completed\n',mesh.steps, mesh.steps);
 

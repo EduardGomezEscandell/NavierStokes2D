@@ -12,6 +12,7 @@ function local_mat = FEM_iterated(local_coords, vel, conc, visc, mu, theta, dt, 
     K1 = zeros(9,9);
     K21 = zeros(9,9);
     K22 = zeros(9,9);
+    Q = zeros(9,9);
     
     jacobian1 = linear_elem.jacobian(local_coords);
     jacobian2 = quadra_elem.jacobian(local_coords);
@@ -57,6 +58,9 @@ function local_mat = FEM_iterated(local_coords, vel, conc, visc, mu, theta, dt, 
             C1  =  C1 + w * N1' * ((N2*vel * gradN1));  % C1(u,v)
             C21 = C21 + w * (N1' * N1) * grad_dRho(1);      % C21(rho)
             C22 = C22 + w * (N1' * N1) * grad_dRho(2);      % C22(rho)
+            
+            % Flux
+            Q = Q + w * N2' * (N1*visc) * gradN2(1,:);
 
             p = p+1;
         end
@@ -70,5 +74,6 @@ function local_mat = FEM_iterated(local_coords, vel, conc, visc, mu, theta, dt, 
     local_mat.C1  = C1  * detJ;
     local_mat.C21 = C21 * detJ;
     local_mat.C22 = C22 * detJ;
+    local_mat.Q   = Q   * detJ;
         
 end

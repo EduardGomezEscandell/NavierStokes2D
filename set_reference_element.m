@@ -1,80 +1,125 @@
-function refelem = set_reference_element(degree)
+function refelem = set_reference_element(dimension, degree)
     gauss_x = [-1,1] / sqrt(3);
     gauss_w = [1,1];
     refelem.gauss = [gauss_x; gauss_w];
-    refelem.weights = ones(2);
     
-    switch degree
+    switch dimension
         case 1
-            refelem.order = 1;
-            refelem.jacobian = @jacobian4;
+            switch degree
+                case 1
+                    N{1} = @(x)(0.5*(1 - x));
+                    N{2} = @(x)(0.5*(1 + x));
+                    
+                    gradN{1} = @(x)(-0.5);
+                    gradN{2} = @(x)( 0.5);                    
+                    
+                case 2
+                    N{1} = @(x)(0.5 * x*(1-x));
+                    N{2} = @(x)((1+x)*(1-x));
+                    N{3} = @(x)(0.5 * x*(1+x));
+                    
+                    gradN{1} = @(x)(0.5 - x);
+                    gradN{2} = @(x)(-2*x);
+                    gradN{3} = @(x)(0.5 + x);
+                    
+                otherwise
+                    error('Higher-than-quadratic shape functions unavailable');
+            end
             
-            N{1} = @(x,y)((1-x)*(1-y)/4);
-            N{2} = @(x,y)((1+x)*(1-y)/4);
-            N{3} = @(x,y)((1+x)*(1+y)/4);
-            N{4} = @(x,y)((1-x)*(1+y)/4);
-            
-            gradN{1} = @(x,y)([ (y-1)/4,  (x-1)/4]');
-            gradN{2} = @(x,y)([ (1-y)/4, -(1+x)/4]');
-            gradN{3} = @(x,y)([ (1+y)/4,  (1+x)/4]');
-            gradN{4} = @(x,y)([-(1+y)/4,  (1-x)/4]');
+            refelem.order = degree;
+            refelem.jacobian = @jacobian1D;
             
             p = 1;
-            for xi = gauss_x                
-                for eta=gauss_x
-                    for i=1:length(N)
-                        refelem.N(i,p) = N{i}(xi,eta);
-                        refelem.gradN(:,i,p) = gradN{i}(xi,eta);
-                    end
-                    p = p+1;
+            for z = gauss_x                
+                for i=1:length(N)
+                    refelem.N(i,p) = N{i}(z);
+                    refelem.gradN(i,p) = gradN{i}(z);
                 end
+                p = p+1;
             end
+            
             
         case 2
-            refelem.order = 2;
-            refelem.jacobian = @jacobian4;
-            
-            % Shape functions
-            N{1} = @(x,y) ( 1/4 * (1-x) * (1-y) * x*y);
-            N{2} = @(x,y) (-1/4 * (1+x) * (1-y) * x*y);
-            N{3} = @(x,y) ( 1/4 * (1+x) * (1+y) * x*y);
-            N{4} = @(x,y) (-1/4 * (1-x) * (1+y) * x*y);
-            N{5} = @(x,y) (-1/2 * (1-x^2) * (1-y) * y);
-            N{6} = @(x,y) ( 1/2 * (1+x) * (1-y^2) * x);
-            N{7} = @(x,y) ( 1/2 * (1-x^2) * (1+y) * y);
-            N{8} = @(x,y) (-1/2 * (1-x) * (1-y^2) * x);
-            N{9} = @(x,y) ((1-x^2) * (1-y^2));
-            
-            % Gradients of shape functions
-            gradN{1} = @(x,y) (1/4*[y*(1-2*x)+y^2*(2*x-1), x*(1-2*y)+x^2*(2*y-1)]');
-            gradN{2} = @(x,y) (-1/4*[y*(1+2*x)-y^2*(2*x+1), x*(1-2*y)+x^2*(1-2*y)]');
-            gradN{3} = @(x,y) (1/4*[(1+2*x)*(y+y^2), (1+2*y)*(x+x^2)]');
-            gradN{4} = @(x,y) (-1/4*[(1-2*x)*(y+y^2), (1+2*y)*(x-x^2)]');
-            gradN{5} = @(x,y) (-1/2*[2*x*y*(y-1), 1-2*y-x^2+2*x^2*y]');
-            gradN{6} = @(x,y) (1/2*[1-y^2+2*x-2*x*y^2, -2*x*y*(x+1)]');
-            gradN{7} = @(x,y) (1/2*[-2*x*y*(y+1), 1+2*y-x^2-2*x^2*y]');
-            gradN{8} = @(x,y) (-1/2*[1-y^2-2*x+2*x*y^2, 2*x*y*(x-1)]');
-            gradN{9} = @(x,y) ([2*x*(y^2-1), 2*y*(x^2-1)]');
-            
-            p = 1;
-            for xi = gauss_x                
-                for eta=gauss_x
-                    
-                    for i=1:length(N)
-                        refelem.N(i,p) = N{i}(xi,eta);
-                        refelem.gradN(:,i,p) = gradN{i}(xi,eta);
+            switch degree
+                case 1
+                    refelem.order = 1;
+                    refelem.jacobian = @jacobian2D;
+
+                    N{1} = @(x,y)((1-x)*(1-y)/4);
+                    N{2} = @(x,y)((1+x)*(1-y)/4);
+                    N{3} = @(x,y)((1+x)*(1+y)/4);
+                    N{4} = @(x,y)((1-x)*(1+y)/4);
+
+                    gradN{1} = @(x,y)([ (y-1)/4,  (x-1)/4]');
+                    gradN{2} = @(x,y)([ (1-y)/4, -(1+x)/4]');
+                    gradN{3} = @(x,y)([ (1+y)/4,  (1+x)/4]');
+                    gradN{4} = @(x,y)([-(1+y)/4,  (1-x)/4]');
+
+                    p = 1;
+                    for xi = gauss_x                
+                        for eta=gauss_x
+                            for i=1:length(N)
+                                refelem.N(i,p) = N{i}(xi,eta);
+                                refelem.gradN(:,i,p) = gradN{i}(xi,eta);
+                            end
+                            p = p+1;
+                        end
                     end
-                    p = p+1;
-                end
+                    
+                case 2
+                    refelem.order = 2;
+                    refelem.jacobian = @jacobian2D;
+
+                    % Shape functions
+                    N{1} = @(x,y) ( 1/4 * (1-x) * (1-y) * x*y);
+                    N{2} = @(x,y) (-1/4 * (1+x) * (1-y) * x*y);
+                    N{3} = @(x,y) ( 1/4 * (1+x) * (1+y) * x*y);
+                    N{4} = @(x,y) ( 1/2 * (1-x^2) * (1+y) * y);
+                    N{5} = @(x,y) (-1/2 * (1-x^2) * (1-y) * y);
+                    N{6} = @(x,y) ( 1/2 * (1+x) * (1-y^2) * x);
+                    N{7} = @(x,y) ( 1/2 * (1-x^2) * (1+y) * y);
+                    N{8} = @(x,y) (-1/2 * (1-x) * (1-y^2) * x);
+                    N{9} = @(x,y) ((1-x^2) * (1-y^2));
+
+                    % Gradients of shape functions
+                    gradN{1} = @(x,y) (1/4*[y*(1-2*x)+y^2*(2*x-1), x*(1-2*y)+x^2*(2*y-1)]');
+                    gradN{2} = @(x,y) (-1/4*[y*(1+2*x)-y^2*(2*x+1), x*(1-2*y)+x^2*(1-2*y)]');
+                    gradN{3} = @(x,y) (1/4*[(1+2*x)*(y+y^2), (1+2*y)*(x+x^2)]');
+                    gradN{4} = @(x,y) (-1/4*[(1-2*x)*(y+y^2), (1+2*y)*(x-x^2)]');
+                    gradN{5} = @(x,y) (-1/2*[2*x*y*(y-1), 1-2*y-x^2+2*x^2*y]');
+                    gradN{6} = @(x,y) (1/2*[1-y^2+2*x-2*x*y^2, -2*x*y*(x+1)]');
+                    gradN{7} = @(x,y) (1/2*[-2*x*y*(y+1), 1+2*y-x^2-2*x^2*y]');
+                    gradN{8} = @(x,y) (-1/2*[1-y^2-2*x+2*x*y^2, 2*x*y*(x-1)]');
+                    gradN{9} = @(x,y) ([2*x*(y^2-1), 2*y*(x^2-1)]');
+
+                    p = 1;
+                    for xi = gauss_x                
+                        for eta=gauss_x
+
+                            for i=1:length(N)
+                                refelem.N(i,p) = N{i}(xi,eta);
+                                refelem.gradN(:,i,p) = gradN{i}(xi,eta);
+                            end
+                            p = p+1;
+                        end
+                    end
+
+
+                otherwise
+                    error('Higher-than-quadratic shape functions unavailable');
             end
-            
-            
         otherwise
-            error('Higher-than-quadratic shape functions unavailable');
+            error('Only 1D and 2D elements allowed');
     end
 end
 
-function jacobian = jacobian4(X)
+function jacobian = jacobian1D(X)
+    jacobian.B = 2 ./ ( X(:,end) - X(:,1));
+    jacobian.det = norm(X(:,end) - X(:,1));
+    jacobian.inv = 1./jacobian.B;
+end
+
+function jacobian = jacobian2D(X)
     j0(1,:) = (- X(:,1) + X(:,2) + X(:,3) - X(:,4))';
     j0(2,:) = (- X(:,1) - X(:,2) + X(:,3) + X(:,4))';
     j1(1,:) = (+ X(:,1) - X(:,2) + X(:,3) - X(:,4))';
@@ -82,8 +127,4 @@ function jacobian = jacobian4(X)
     jacobian.j0 = j0;
     jacobian.j1 = j1;
     jacobian.calc = @(jacobian, xi,eta)(0.25 * jacobian.j0 + [xi;eta]*jacobian.j1);
-end
-
-function jacobian = jacobian9(X)
-    
 end

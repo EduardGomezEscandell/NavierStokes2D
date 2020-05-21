@@ -1,5 +1,7 @@
 function post_processing(coords, X_history, duration, dof, mesh,  corner_to_node)
     
+    dt = duration / mesh.steps;
+
     width = max(coords(1,:));
     height = max(coords(2,:));
     
@@ -37,6 +39,7 @@ function post_processing(coords, X_history, duration, dof, mesh,  corner_to_node
 
         hold off
         view(2)
+        caxis([minU, maxU]);
         axis([-.2 width+.2 -.2 height+.2]);
         c=colorbar('southoutside');
         ylabel(c,'Velocity');
@@ -46,6 +49,7 @@ function post_processing(coords, X_history, duration, dof, mesh,  corner_to_node
         t = trisurf(T1, coords(1,corner_to_node)', coords(2,corner_to_node)', zeros(mesh.corners,1), X(dof.p));
         t.EdgeColor = 'None';
         shading interp
+        caxis([minp, maxp]);
         c=colorbar('southoutside');
         ylabel(c,'Pressure');
         view(2)
@@ -63,7 +67,7 @@ function post_processing(coords, X_history, duration, dof, mesh,  corner_to_node
         title('Concentration');
         
         drawnow;
-        pause(max(0,1/30-toc));
+        pause(max(0,dt-toc));
         time = time + dt;
     end
 end

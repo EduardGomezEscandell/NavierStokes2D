@@ -42,8 +42,8 @@ function [M1, M12, M2, K, G1, G2] = FEM_constant(local_coords, linear_elem, quad
             K  =  K  + w * (gradN1' * gradN1);
             
             % G
-            G1 = G1 - w * gradN1(1,:)' * N2;
-            G2 = G2 - w * gradN1(2,:)' * N2;
+            G1 = G1 + w * gradN1(1,:)' * N2;
+            G2 = G2 + w * gradN1(2,:)' * N2;
         end
     end
 
