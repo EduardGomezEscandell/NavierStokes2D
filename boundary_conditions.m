@@ -24,22 +24,23 @@ function bc_data =  boundary_conditions(coords, mesh, Gamma, node_to_corner, dof
 %         bc_data = set_BC(bc_data, node, 'u', 10*ones);
         bc_data = set_BC(bc_data, node, 'p', sine);
 %         bc_data = set_BC(bc_data, node, 'v', zero);
+        bc_data = set_BC(bc_data, node, 'd', 2*ones);
     end
     
     for node = Gamma.nodes{4}
 %         bc_data = set_BC(bc_data, node, 'u', 5*ones);
 %         bc_data = set_BC(bc_data, node, 'v', zero);
         bc_data = set_BC(bc_data, node, 'p', zeros);
+        bc_data = set_BC(bc_data, node, 'd', 1*ones);
     end
     
 %     bc_data = set_BC(bc_data, 1, 'p', ones);
     
-    I = speye(mesh.dof-mesh.corners,mesh.dof-mesh.corners);
+    I = speye(mesh.dof,mesh.dof);
     D = I;
     D(bc_data.removed_dof, bc_data.removed_dof) = 0;
     bc_data.dirichlet_matrix = I - D;
     bc_data.n_removed = length(bc_data.removed_dof);
-    
     
     % Assisting functions
     
@@ -48,6 +49,7 @@ function bc_data =  boundary_conditions(coords, mesh, Gamma, node_to_corner, dof
         bc_data.U_dirichlet = sparse(mesh.nodes, mesh.steps);
         bc_data.V_dirichlet = sparse(mesh.nodes, mesh.steps);
         bc_data.P_neumann = sparse(mesh.corners, mesh.steps);
+        bc_data.D_dirichlet = sparse(mesh.corners, mesh.corners);
         bc_data.removed_dof = [];
     end
     

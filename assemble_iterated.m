@@ -1,6 +1,6 @@
-function [K1, K21, K22, C1, C21, C22, Q, SUPG] = assemble_iterated(connect, coords, node_to_corner, X, mesh, dof, Gamma, refelem, visc, mu, theta, dt) 
+function [K1, K21, K22, C1, C21, C22, SUPG] = assemble_iterated(connect, coords, node_to_corner, X, mesh, dof, Gamma, refelem, visc, mu, theta, dt) 
 
-    SUPG= sparse(mesh.nodes,mesh.nodes);
+    SUPG= sparse(mesh.corners,mesh.corners);
     
     Q = sparse(mesh.nodes,mesh.nodes);
     
@@ -33,8 +33,8 @@ function [K1, K21, K22, C1, C21, C22, Q, SUPG] = assemble_iterated(connect, coor
         C21(corners,corners) = C21(corners,corners) + local_mat.C21;
         C22(corners,corners) = C22(corners,corners) + local_mat.C22;
 
-%             % Stabilization matrices
-%             SUPG(corners,corners) = SUPG(corners,corners) + local_mat.supg;
+        % Stabilization matrices
+        SUPG(corners,corners) = SUPG(corners,corners) + local_mat.supg;
     end
 
     for eg = 1:length(Gamma.neumann_edges)
