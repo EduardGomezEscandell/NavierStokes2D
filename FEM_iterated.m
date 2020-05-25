@@ -1,9 +1,5 @@
 function local_mat = FEM_iterated(local_coords, vel, conc, visc, mu, theta, dt, linear_elem, quadra_elem)
     % First Order
-    L = zeros(4,4);
-    supg = zeros(4,4);
-    K = zeros(4,4);
-    
     C1 = zeros(4,4);
     C21 = zeros(4,4);
     C22 = zeros(4,4);
@@ -13,6 +9,11 @@ function local_mat = FEM_iterated(local_coords, vel, conc, visc, mu, theta, dt, 
     K21 = zeros(9,9);
     K22 = zeros(9,9);
     Q = zeros(9,9);
+    
+    % Hybrid
+    K_tau = zeros(4,4);
+    C1_tau = zeros(4,4);
+    M12_tau = zeros(4,9);
     
     jacobian1 = linear_elem.jacobian(local_coords);
     jacobian2 = quadra_elem.jacobian(local_coords);
@@ -44,36 +45,39 @@ function local_mat = FEM_iterated(local_coords, vel, conc, visc, mu, theta, dt, 
             grad_v = gradN2 * vel(:,2); 
             grad_dRho= gradN1 * conc;
 
-            % Stabilization in concentration
-            a = N2*vel;
-            tau = (1/(theta*dt) + 2*norm(a)/h + 4*mu/h^2)^-1;
-            supg = supg + tau * (a * gradN1)' * N1;
-
             % Diffusion
             K1  =  K1 + w * gradN2' * (N1*visc) * gradN2; % K1(nu)
             K21 = K21 + w * gradN2' * grad_u * N2;           % K2(u)
             K22 = K22 + w * gradN2' * grad_v * N2;           % K2(v)
 
             % Convection
-            C1  =  C1 + w * N1' * ((N2*vel * gradN1));  % C1(u,v)
+            C1  =  C1 + w * N1' * ((N2*vel * gradN1)); 
             C21 = C21 + w * (N1' * N1) * grad_dRho(1);      % C21(rho)
             C22 = C22 + w * (N1' * N1) * grad_dRho(2);      % C22(rho)
             
-            % Flux
-            Q = Q + w * N2' * (N1*visc) * gradN2(1,:);
+            % Stabilization in concentration
+            a = N2*vel;
+            tau = (1/(theta*dt) + 2*norm(a)/h + 4*mu/h^2)^-1;
+%             tau = (1/(theta*dt)^2 + (2*norm(a)/h)^2 + 9*(4*mu/h^2)^2)^(-1/2);
+            
+            M12_tau= M12_tau + w * tau * (N1'*N2);
+            K_tau  = K_tau   + w * tau * (gradN1' * gradN1);
+            C1_tau = C1_tau  + w * tau * N1' * ((N2*vel * gradN1)); 
 
             p = p+1;
         end
     end
 
-    local_mat.supg= supg* detJ;
-    local_mat.K   = K   * detJ;
     local_mat.K1  = K1  * detJ;
     local_mat.K21 = K21 * detJ;
     local_mat.K22 = K22 * detJ;
+    
     local_mat.C1  = C1  * detJ;
     local_mat.C21 = C21 * detJ;
     local_mat.C22 = C22 * detJ;
-    local_mat.Q   = Q   * detJ;
+    
+    local_mat.M12_tau = M12_tau * detJ;
+    local_mat.K_tau   = K_tau   * detJ;
+    local_mat.C1_tau  = C1_tau  * detJ;
         
 end

@@ -1,8 +1,4 @@
-function [K1, K21, K22, C1, C21, C22, SUPG] = assemble_iterated(connect, coords, node_to_corner, X, mesh, dof, Gamma, refelem, visc, mu, theta, dt) 
-
-    SUPG= sparse(mesh.corners,mesh.corners);
-    
-    Q = sparse(mesh.nodes,mesh.nodes);
+function [K1, K21, K22, C1, C21, C22, M12_tau, K_tau, C1_tau] = assemble_iterated(connect, coords, node_to_corner, X, mesh, dof, Gamma, refelem, visc, mu, theta, dt) 
     
     K1  = sparse(mesh.nodes,mesh.nodes);
     K21 = sparse(mesh.nodes,mesh.nodes);
@@ -11,6 +7,10 @@ function [K1, K21, K22, C1, C21, C22, SUPG] = assemble_iterated(connect, coords,
     C1  = sparse(mesh.corners,mesh.corners);
     C21 = sparse(mesh.corners,mesh.corners);
     C22 = sparse(mesh.corners,mesh.corners);
+    
+    K_tau  = sparse(mesh.corners,mesh.corners);
+    C1_tau  = sparse(mesh.corners,mesh.corners);
+    M12_tau  = sparse(mesh.corners,mesh.nodes);
 
     for el=1:mesh.elems
         nodes = connect(:,el);
@@ -34,15 +34,8 @@ function [K1, K21, K22, C1, C21, C22, SUPG] = assemble_iterated(connect, coords,
         C22(corners,corners) = C22(corners,corners) + local_mat.C22;
 
         % Stabilization matrices
-        SUPG(corners,corners) = SUPG(corners,corners) + local_mat.supg;
-    end
-
-    for eg = 1:length(Gamma.neumann_edges)
-        nodes = Gamma.neumann_edges(:,eg);
-        corners = node_to_corner(nodes([1,3]));
-        v = visc(corners);
-        local_coords = coords(:,nodes);
-        q = FEM_iterated_line(local_coords, v, refelem.L1, refelem.L2);
-        Q(nodes, nodes) = Q(nodes, nodes) + q;
+        C1_tau(corners,corners)  = C1_tau(corners,corners)  + local_mat.C1_tau;
+        K_tau(corners,corners)  = K_tau(corners,corners)  + local_mat.K_tau;
+        M12_tau(corners,nodes)  = M12_tau(corners,nodes)  + local_mat.M12_tau;
     end
 end

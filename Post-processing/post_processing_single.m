@@ -32,7 +32,7 @@ function post_processing_single(coords, connect, mesh, dof, corner_to_node, X)
     c=colorbar('southoutside');
     ylabel(c,'Velocity');
     title('Velocity field');
-    axis equal
+%     axis equal
     
     subplot(1,3,2);
     plotX = reshape(coords(1,corner_to_node),[mesh.cols+1, mesh.rows+1])';

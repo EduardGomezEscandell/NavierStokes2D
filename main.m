@@ -8,7 +8,7 @@ height = 3;
 duration = 5;
 
 visc0 = 1;
-mu = 1;
+mu  = 0.1;
 omega = 1;
 
 % Discretization
@@ -79,39 +79,54 @@ bc_data =  boundary_conditions(coords, mesh, Gamma, node_to_corner, dof, duratio
 X = X_history(:,1);
 visc = get_viscosity(X(dof.p), visc0);
 source = get_source(X(dof.u), X(dof.v));
-[K1,~,~, C1,~,~,~] = assemble_iterated(connect, coords, node_to_corner, X, mesh, dof, Gamma, refelem, visc, mu, theta, dt);
+[K1, ~, ~, C1, ~, ~, M12_tau, K_tau, C1_tau] = assemble_iterated(connect, coords, node_to_corner, X, mesh, dof, Gamma, refelem, visc, mu, theta, dt);
 Pe_history(:,1) = get_peclet(coords, connect, mesh, dof, X, refelem, mu);
 
 %% TEST STEADY STATE
-% Z1  = sparse(mesh.corners,mesh.corners);
-% Z12 = sparse(mesh.nodes,mesh.corners);
-% Z2  = sparse(mesh.nodes,mesh.nodes);
-% 
-% K = [ K1  Z2 G1'
-%       Z2  K1 G2'
-%       G1 G2  Z1];
-% 
-% % f1 = M12' * bc_data.P_neumann(:,1);
-% % f2 = M12' * bc_data.P_neumann(:,1);
-% h = G1 * bc_data.U_dirichlet(:,1) + G2 * bc_data.V_dirichlet(:,1);
-% % 
-% F = [zeros(2*mesh.nodes,1); h];
-% % F = zeros(mesh.dof - mesh.corners, 1);
-% % 
-% if boundary_method==1
-%     K(bc_data.removed_dof,:) = sparse(bc_data.n_removed,mesh.dof-mesh.corners);
-%     K = K + bc_data.dirichlet_matrix;
-%     F(bc_data.removed_dof) = 0;
-%     F = F + [bc_data.U_dirichlet(:,1); bc_data.V_dirichlet(:,1); bc_data.P_neumann(:,1)];
-% else
-%     bc_data.H = bc_data.H(:,1:(dof.d(1) - 1));
-%     K = K + penalty * (bc_data.H'*bc_data.H);
-%     F = F + penalty * bc_data.H'*(bc_data.e(:,1));
-% end
-% 
-% X = K\F;
+Z1  = sparse(mesh.corners,mesh.corners);
+Z12 = sparse(mesh.nodes,mesh.corners);
+Z2  = sparse(mesh.nodes,mesh.nodes);
 
-% post_processing_single(coords, connect, mesh, dof, corner_to_node, X) 
+for i=1:maxIter
+    visc = get_viscosity(X(dof.p), visc0);
+    source = get_source(X(dof.u), X(dof.v));
+    [K1, ~, ~, C1, ~, ~, M12_tau, K_tau, C1_tau] = assemble_iterated(connect, coords, node_to_corner, X, mesh, dof, Gamma, refelem, visc, mu, theta, dt);
+    
+%     h = - G1 * bc_data.U_dirichlet(:,1) + G2 * bc_data.V_dirichlet(:,1);
+%     f1 = - M2*bc_data.U_dirichlet(:,1);
+%     f2 = - M2*bc_data.V_dirichlet(:,1);
+    
+    B = -mu*K0 + C1;
+
+%     B = B - C1*(K_tau + C1_tau);
+    
+    K = [ K1   Z2  G1' Z12
+          Z2   K1  G2' Z12
+          G1   G2  Z1   Z1
+         Z12' Z12' Z1    B];
+
+%     F = [f1; f2; h; M12*source];
+    F = zeros(mesh.dof,1);
+    
+    F(dof.d) = (M12 - C1 * M12_tau)*source;
+%     Boundary conditions
+    K(bc_data.removed_rows,:) = sparse(bc_data.n_removed,mesh.dof);
+    K = K + bc_data.dirichlet_matrix;
+    F(bc_data.removed_rows) = 0;
+    
+    F(dof.u) = bc_data.U_dirichlet(:,1);
+    F(dof.v) = bc_data.V_dirichlet(:,1);
+    F(dof.p) = bc_data.P_neumann(:,1);
+    F(dof.d) = bc_data.D_dirichlet(:,1) + M12*source;
+    %
+    X_new = K\F;
+    error = norm(X-X_new)
+    X = X + 1 *(X_new-X);
+    post_processing_single(coords, connect, mesh, dof, corner_to_node, X)
+    if  error < tol
+        break;
+    end
+end
 %% END OF TEST
 
 for step = 1:mesh.steps
