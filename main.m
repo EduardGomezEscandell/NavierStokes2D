@@ -3,19 +3,19 @@ clc; addpath('Post-processing');
 %% Data entry
 
 % Phisical data
-width = 2;
-height = 3;
-duration = 5;
+width = 1;
+height = 1;
+duration = 2;
 
-visc0 = 1;
-mu  = 0.1;
+visc0 = 0.1;
+mu   =  50;
 omega = 1;
 
 % Discretization
-x_elems = 10;
-y_elems = 15;
+x_elems = 20;
+y_elems = 20;
 
-mesh.steps = 20;
+mesh.steps = 50;
 theta = 1/2;
 
 % Numerical parameters
@@ -23,31 +23,24 @@ method = 1;
 % 1: Picard
 % 2: Newton-Raphson
 
-boundary_method = 1; 
-% 1: row elimination
-% 2: penalty method
-penalty = 1e8;
-
 stabilize_pressure = false;
 stabilize_concentration = true;
 
 % Precision
 maxIter = 20;
-tol = 1e-8;
-relaxation = 0.3;
+tol = 1e-3;
+relaxation = 0.5;
 
 %% Generating mesh
-Gamma_test{1} = @(X)(X(1) == 0 && X(2) < height/2 && X(2) > 0);
-Gamma_test{2} = @(X)(X(1) == 0 && X(2) >= height/2  && X(2) <= height);
-Gamma_test{3} = @(X)(X(2) == height && X(1) >0 && X(1) < width);
-Gamma_test{4} = @(X)(X(1) == width);
-Gamma_test{5} = @(X)(X(2) == 0 && X(1) >0 && X(1) < width);
+Gamma_test{1} = @(X)(X(1) == 0        && X(2) < height/2    && X(2) > 0);
+Gamma_test{2} = @(X)(X(1) == 0        && X(2) >= height/2   && X(2) < height);
+Gamma_test{3} = @(X)(X(2) == height);
+Gamma_test{4} = @(X)(X(1) == width    && X(2) < height      && X(2) > 0);
+Gamma_test{5} = @(X)(X(2) == 0);
 [coords,connect, corner_to_node, node_to_corner, Gamma] = square_mesh(width, height, x_elems, y_elems, Gamma_test);
 
-refelem.L1 = set_reference_element(1,1); % Linear 1D element
-refelem.L2 = set_reference_element(1,2); % Quadratic 1D element
-refelem.Q1 = set_reference_element(2,1); % Linear 2D quad element
-refelem.Q2 = set_reference_element(2,2); % Quadraic 2D quad element
+refelem.Q1 = set_reference_element(1); % Linear 2D quad element
+refelem.Q2 = set_reference_element(2); % Quadraic 2D quad element
 
 %% Shorthand notation
 mesh.nodes = size(coords,2);
@@ -73,7 +66,7 @@ bc_data =  boundary_conditions(coords, mesh, Gamma, node_to_corner, dof, duratio
 
 %% Solver
 % Constant terms
-[K0, M1, M12, M2, G1, G2] = assemble_constant(coords, connect, mesh, node_to_corner, refelem, Gamma);
+[K0, M1, M12, M2, G1, G2] = assemble_constant(coords, connect, mesh, node_to_corner, refelem);
 
 % Terms evaluated at step 1
 X = X_history(:,1);
@@ -82,52 +75,11 @@ source = get_source(X(dof.u), X(dof.v));
 [K1, ~, ~, C1, ~, ~, M12_tau, K_tau, C1_tau] = assemble_iterated(connect, coords, node_to_corner, X, mesh, dof, Gamma, refelem, visc, mu, theta, dt);
 Pe_history(:,1) = get_peclet(coords, connect, mesh, dof, X, refelem, mu);
 
-%% TEST STEADY STATE
-Z1  = sparse(mesh.corners,mesh.corners);
-Z12 = sparse(mesh.nodes,mesh.corners);
-Z2  = sparse(mesh.nodes,mesh.nodes);
+% steady_state;
 
-for i=1:maxIter
-    visc = get_viscosity(X(dof.p), visc0);
-    source = get_source(X(dof.u), X(dof.v));
-    [K1, ~, ~, C1, ~, ~, M12_tau, K_tau, C1_tau] = assemble_iterated(connect, coords, node_to_corner, X, mesh, dof, Gamma, refelem, visc, mu, theta, dt);
-    
-%     h = - G1 * bc_data.U_dirichlet(:,1) + G2 * bc_data.V_dirichlet(:,1);
-%     f1 = - M2*bc_data.U_dirichlet(:,1);
-%     f2 = - M2*bc_data.V_dirichlet(:,1);
-    
-    B = -mu*K0 + C1;
-
-%     B = B - C1*(K_tau + C1_tau);
-    
-    K = [ K1   Z2  G1' Z12
-          Z2   K1  G2' Z12
-          G1   G2  Z1   Z1
-         Z12' Z12' Z1    B];
-
-%     F = [f1; f2; h; M12*source];
-    F = zeros(mesh.dof,1);
-    
-    F(dof.d) = (M12 - C1 * M12_tau)*source;
-%     Boundary conditions
-    K(bc_data.removed_rows,:) = sparse(bc_data.n_removed,mesh.dof);
-    K = K + bc_data.dirichlet_matrix;
-    F(bc_data.removed_rows) = 0;
-    
-    F(dof.u) = bc_data.U_dirichlet(:,1);
-    F(dof.v) = bc_data.V_dirichlet(:,1);
-    F(dof.p) = bc_data.P_neumann(:,1);
-    F(dof.d) = bc_data.D_dirichlet(:,1) + M12*source;
-    %
-    X_new = K\F;
-    error = norm(X-X_new)
-    X = X + 1 *(X_new-X);
-    post_processing_single(coords, connect, mesh, dof, corner_to_node, X)
-    if  error < tol
-        break;
-    end
-end
-%% END OF TEST
+% Reducing matrices
+G1red  = G1(bc_data.unkn_p, bc_data.unkn_u);
+G2red  = G2(bc_data.unkn_p, bc_data.unkn_v);
 
 for step = 1:mesh.steps
     %% Main iteration loop
@@ -136,12 +88,19 @@ for step = 1:mesh.steps
     K1_old = K1;
     source_old = source;
     
+    % Setting up boundary conditions
+    X(dof.u(1) -1 + bc_data.enforced_u) = bc_data.enforced_u_value(:,step+1);
+    X(dof.v(1) -1 + bc_data.enforced_v) = bc_data.enforced_v_value(:,step+1);
+    X(dof.p(1) -1 + bc_data.enforced_p) = bc_data.enforced_p_value(:,step+1);
+    X(dof.d(1) -1 + bc_data.enforced_d) = bc_data.enforced_d_value(:,step+1);
+    
     for iter=1:maxIter
         %% Assembling elemental matrices
         source = get_source(X(dof.u), X(dof.v));
         visc = get_viscosity(X(dof.p), visc0);
         
-        [K1, K21, K22, C1, C21, C22, supg] = assemble_iterated(connect, coords, node_to_corner, X, mesh, dof, Gamma, refelem, visc, mu, theta, dt);
+        [K1, K21, K22, C1, C21, C22,  M12_tau, K_tau, C1_tau] = assemble_iterated(connect, coords, node_to_corner, X, mesh, dof, Gamma, refelem, visc, mu, theta, dt);
+
         
         %% Assembling global system
         A = M2 + dt*theta*K1;
@@ -151,84 +110,86 @@ for step = 1:mesh.steps
         b2 = (M2 + dt*(1-theta)*K1_old) * X(dof.v) + dt*(1-theta)*G2'*X(dof.p);
         
         B = M1 + dt*theta*(C1 + mu*K0);
-        d = (M1 - dt*(1-theta)*(C1_old + mu*K0))*X(dof.d) + ...
-                              dt*(theta*M12*source + (1-theta)*M12*source_old);
+        d = (M1 - dt*(1-theta)*(C1_old + mu*K0))*X(dof.d) + dt*(theta*M12*source + (1-theta)*M12*source_old);
         
-        % Empty matrices of appropiate sizes
-        Z1  = sparse(mesh.corners,mesh.corners);
-        Z12 = sparse(mesh.nodes,mesh.corners);
-        Z2  = sparse(mesh.nodes,mesh.nodes);
-        z = zeros(mesh.corners,1);
+        %% Reducing matrices
+        Au = A(bc_data.unkn_u, bc_data.unkn_u);
+        Av = A(bc_data.unkn_v, bc_data.unkn_v);
+        T1red = T1(bc_data.unkn_u, bc_data.unkn_p);
+        T2red = T2(bc_data.unkn_v, bc_data.unkn_p);
+        Bred = B(bc_data.unkn_d, bc_data.unkn_d);
         
-        if stabilize_concentration
-            I = speye(size(B));
-            B = (I + supg)*B;
-            d = (I + supg)*d;
-        end
+        %% Load vectors
+        bu = - A(bc_data.unkn_u, bc_data.enforced_u)*bc_data.enforced_u_value(:,step+1) - T1(bc_data.unkn_u, bc_data.enforced_p)*bc_data.enforced_p_value(:,step+1);
+        bv = - A(bc_data.unkn_v, bc_data.enforced_v)*bc_data.enforced_v_value(:,step+1) - T2(bc_data.unkn_v, bc_data.enforced_p)*bc_data.enforced_p_value(:,step+1);
+        bp = - G1(bc_data.unkn_p, bc_data.enforced_u)*bc_data.enforced_u_value(:,step+1) - G2(bc_data.unkn_p, bc_data.enforced_v)*bc_data.enforced_v_value(:,step+1);
+        dred = d(bc_data.unkn_d) - B(bc_data.unkn_d, bc_data.enforced_d) * bc_data.enforced_d_value(:,step+1);
         
-        if ~stabilize_pressure
-            %L = Z;
-        end
+        %% Obtaining residual
+        [K, F] = build_monolythic(Au, Av, T1red, T2red, G1red, G2red, Bred, bu, bv, bp, dred);
         
-        K = [  A   Z2  -T1  Z12;
-              Z2    A  -T2  Z12;
-              G1   G2  Z1   Z1;
-             Z12' Z12' Z1   B];
+        Xred = reduce_vec(X, bc_data, dof);
+        res = F - K*Xred;
 
-        F = [b1; b2; z; d];
-% 
-%         K = [  A   Z2  T1;
-%               Z2    A  T2;
-%               G1   G2  Z1];
-% 
-%         F = [b1; b2; z];
-
+        %% Picard iteration
+        dXred = K \ res;
+        dX = enlarge_dX(dXred, bc_data, dof, mesh);
         
-        %% Boundary condition enforcement
-        if boundary_method==1
-            K(bc_data.removed_dof,:) = sparse(bc_data.n_removed,mesh.dof);
-            K = K + bc_data.dirichlet_matrix;
-            F(bc_data.removed_dof) = 0;
-            F = F + [bc_data.U_dirichlet(:,step);
-                     bc_data.V_dirichlet(:,step);
-                     bc_data.P_neumann(:,step)  ;
-                     bc_data.D_dirichlet(:,step)];
-        else
-            % Nope
-        end
         
-        %% Obtaining residual and error
+        %% Calculating next X        
+        X = X + relaxation * dX;
         
-        R = F - K*X;
-        error = max(R);
-
+        
+        %% Evaluating error
+        [error, ierror] = max(dX([dof.u, dof.v, dof.d])); % Ignoring pressure
+        
 %         post_processing_single(coords, connect, mesh, dof, corner_to_node, X);
-%         fprintf('Error = %g\n',error);
-
+%         fprintf('Max error = %g at dof %g (%s)\n',error, ierror, errtype);
+        
         if error < tol
             break;
         end
-        
-        %% Calculating next X
-        
-        X_new = K\F;
-        
-        X = X + relaxation * (X_new-X);
-        
     end
     %% Preparing next step
     
-    if iter==maxIter
-        warning('Maximum number of iterations reached before convergence');
+    if(ierror < dof.v(1))
+        errtype = 'velocity u';
+    elseif(ierror < dof.p(1))
+        errtype = 'velocity v';
+    else
+        errtype = 'concentration';
     end
+    fprintf('Step %3d: Max error = %8e at dof %5d (%s)\n',step, error, ierror, errtype);
     
-    if(mod(step,10) == 0)
-        fprintf('Step %3d of %3d completed\n',step, mesh.steps);
-    end
-    
-    Pe_history(:,step+1) = get_peclet(coords, connect, mesh, dof, X, refelem, mu);
     X_history(:,step+1) = X;
 end
-fprintf('Step %3d of %3d completed\n',mesh.steps, mesh.steps);
 
 post_processing(coords, X_history, Pe_history, duration, dof, mesh, corner_to_node)
+
+
+
+function Xred = reduce_vec(X, bc_data, dof)
+    u_dof = bc_data.unkn_u;
+    v_dof = dof.v(1) - 1 + bc_data.unkn_v;
+    p_dof = dof.p(1) - 1 + bc_data.unkn_p;
+    d_dof = dof.d(1) - 1 + bc_data.unkn_d;
+    
+    Xred = X([u_dof, v_dof, p_dof, d_dof]);
+end
+
+function dX = enlarge_dX(dXred, bc_data, dof, mesh)
+    u_dof = 1:length(bc_data.unkn_u);
+    v_dof = u_dof(end) + (1:length(bc_data.unkn_v));
+    p_dof = v_dof(end) + (1:length(bc_data.unkn_p));
+    d_dof = p_dof(end) + (1:length(bc_data.unkn_d));
+    
+    dX = zeros(mesh.dof,1);
+    
+    dX(dof.u(1) -1 + bc_data.unkn_u) = dXred(u_dof);
+    dX(dof.v(1) -1 + bc_data.unkn_v) = dXred(v_dof);
+    dX(dof.p(1) -1 + bc_data.unkn_p) = dXred(p_dof);
+    dX(dof.d(1) -1 + bc_data.unkn_d) = dXred(d_dof);
+    
+end
+
+

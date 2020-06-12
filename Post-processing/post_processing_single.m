@@ -1,53 +1,43 @@
 function post_processing_single(coords, connect, mesh, dof, corner_to_node, X)  
     
     width = max(coords(1,:));
-    height = max(coords(2,:));
-    modU = sqrt(X(dof.u).^2 + X(dof.v).^2);
+    height = max(coords(2,:));    
     
-    subplot(1,3,1);
+    %% Velocity
     
     plotX = reshape(coords(1,:),[mesh.cols*2+1, mesh.rows*2+1])';
     plotY = reshape(coords(2,:),[mesh.cols*2+1, mesh.rows*2+1])';
+    
+    modU = sqrt(X(dof.u).^2 + X(dof.v).^2);
     plotU = reshape(modU,[mesh.cols*2+1, mesh.rows*2+1])';
-    t = surf(plotX, plotY, zeros(size(plotX)), plotU);  
-    t.EdgeColor = 'None';
+    
+    subplot(1,3,1);
+    surf(plotX, plotY, zeros(size(plotX)), plotU);  
     shading interp
 
-    hold on
-    
-    plotU = reshape(X(dof.u),[mesh.cols*2+1, mesh.rows*2+1])';
-    plotV = reshape(X(dof.v),[mesh.cols*2+1, mesh.rows*2+1])';
-    
-    n_lines = 5;
-    xstart = zeros(n_lines,1);
-    ystart = linspace(height/2, height, n_lines);
-    smline = streamline(plotX, plotY, plotU, plotV, xstart, ystart);
-    set(smline,'Color','k'); 
-    
+    hold on    
     quiver(coords(1,:)', coords(2,:)', X(dof.u), X(dof.v),'r');
-       
     hold off
     view(2)
-%     axis([-.2 width+.2 -.2 height+.2]);
     c=colorbar('southoutside');
     ylabel(c,'Velocity');
     title('Velocity field');
-%     axis equal
+    axis tight
     
+    %% Pressure
     subplot(1,3,2);
     plotX = reshape(coords(1,corner_to_node),[mesh.cols+1, mesh.rows+1])';
     plotY = reshape(coords(2,corner_to_node),[mesh.cols+1, mesh.rows+1])';
     plotP = reshape(X(dof.p),[mesh.cols+1, mesh.rows+1])';
-    t = surf(plotX, plotY, plotP, plotP);  
-    t.EdgeColor = 'None';
+    surf(plotX, plotY, plotP, plotP);
     shading interp
     c=colorbar('southoutside');
     ylabel(c,'Pressure');
     view(2)
-%     axis([-.2 width+.2 -.2 height+.2]);
+    caxis([prctile(X(dof.p),10), prctile(X(dof.p),90)]);
     title('Pressure');
-%     axis equal
     
+    %% Concentration
     subplot(1,3,3);
     plotD = reshape(X(dof.d),[mesh.cols+1, mesh.rows+1])';
     t = surf(plotX, plotY, plotD, plotD);
@@ -58,4 +48,5 @@ function post_processing_single(coords, connect, mesh, dof, corner_to_node, X)
     view(2)
     axis([-.2 width+.2 -.2 height+.2]);
     title('Concentration');
+    axis tight;
 end

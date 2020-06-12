@@ -17,11 +17,13 @@ function [M1, M12, M2, K, G1, G2] = FEM_constant(local_coords, linear_elem, quad
     jacobian2 = quadra_elem.jacobian(local_coords);
     
     p = 1;
+    total_w = 0;
     for gp1 = linear_elem.gauss
         xi = gp1(1);
         for gp2 = linear_elem.gauss
             eta = gp2(1);
             w = gp1(2) * gp2(2);
+            total_w = total_w + w;
 
             % Linear Shape functions
             J1 = jacobian1.calc(jacobian2,xi,eta);
@@ -48,6 +50,7 @@ function [M1, M12, M2, K, G1, G2] = FEM_constant(local_coords, linear_elem, quad
     end
 
     detJ = det(jacobian1.calc(jacobian1,0,0));
+    detJ = detJ / total_w;
     M1  =  M1 * detJ;
     M12 = M12 * detJ;
     M2  =  M2 * detJ;

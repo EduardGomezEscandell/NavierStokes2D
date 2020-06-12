@@ -1,87 +1,89 @@
-function bc_data =  boundary_conditions(coords, mesh, Gamma, node_to_corner, dof, duration, omega)
+function bc_data =  boundary_conditions(coords, mesh, Gamma, node_to_corner, dof, duration, omega)   
+    %% Useful values
+    span = max(coords');
+    width = span(1);
+    height= span(2);
+    t = linspace(0, duration, mesh.steps+1);
     
-    width=max(coords(1,:));
-    height=max(coords(2,:));
-
-    t = linspace(0, duration, mesh.steps);
-    
-    % Different arrays to make notation cleaner
-    zero = zeros(size(t));
-    one  = ones(size(t));
-    sine = 2*sin(omega*t - pi/2);
-    parabh = @(X)((X(2) - height/2)*(height-X(2)) * 16 / height^2);
-    parabf = @(X)(X(2)*(X(2)-height) * 4 / height^2);
-    
-    %
+    %% Initializing bc_data object
     bc_data = bc_data_init(mesh);
     
+    %% Setting boundary conditions
     for node = [Gamma.nodes{1}, Gamma.nodes{3}, Gamma.nodes{5}]
-        bc_data = set_BC(bc_data, node, 'u', zero);
-        bc_data = set_BC(bc_data, node, 'v', zero);
+        % Gamma 1, 3 and 5
+        bc_data = set_BC(bc_data, node, 'u', 0);
+        bc_data = set_BC(bc_data, node, 'v', 0);
     end
     
     for node = Gamma.nodes{2}
-%         bc_data = set_BC(bc_data, node, 'u', 10*ones);
-        bc_data = set_BC(bc_data, node, 'u', -sine);
-%         bc_data = set_BC(bc_data, node, 'v', zero);
-        bc_data = set_BC(bc_data, node, 'd', 1*ones);
+        % Gamma 2
+        bc_data = set_BC(bc_data, node, 'p', 0);
     end
     
     for node = Gamma.nodes{4}
-%         bc_data = set_BC(bc_data, node, 'u', 5*ones);
-%         bc_data = set_BC(bc_data, node, 'v', zero);
-        bc_data = set_BC(bc_data, node, 'p', ones);
-        bc_data = set_BC(bc_data, node, 'd', 0*ones);
+        % Gamma 4
+        X = coords(:,node);
+%         bc_data = set_BC(bc_data, node, 'u', sin(t*pi) * max(0, (X(2)-0.1) * (height - 0.1 - X(2))));
+        bc_data = set_BC(bc_data, node, 'p', sin(t*pi));
+        bc_data = set_BC(bc_data, node, 'd', 0);
     end
     
-%     bc_data = set_BC(bc_data, 1, 'p', ones);
+    %% Writing pressure BC in case its enclosed flow
     
-    bc_data.n_removed = length(bc_data.removed_rows);
+    if size(bc_data.enforced_p,1) == 0
+        bc_data = set_BC(bc_data, 1, 'p', 0);
+    end
     
-    % Assisting functions
+    %% Finishing bc_data object
+    bc_data = bc_data_finish(bc_data, mesh);
     
+    
+    %% Assisting functions
     
     function bc_data = bc_data_init(mesh)
-        bc_data.U_dirichlet = sparse(mesh.nodes, mesh.steps);
-        bc_data.V_dirichlet = sparse(mesh.nodes, mesh.steps);
-        bc_data.P_neumann = sparse(mesh.corners, mesh.steps);
-        bc_data.D_dirichlet = sparse(mesh.corners, mesh.corners);
-        bc_data.removed_rows = [];
+        bc_data.enforced_u = [];
+        bc_data.enforced_v = [];
+        bc_data.enforced_p = [];
+        bc_data.enforced_d = [];
+        
+        bc_data.enforced_u_value = zeros(0, mesh.steps+1);
+        bc_data.enforced_v_value = zeros(0, mesh.steps+1);
+        bc_data.enforced_p_value = zeros(0, mesh.steps+1);
+        bc_data.enforced_d_value = zeros(0, mesh.steps+1);
+        
         bc_data.dirichlet_matrix = sparse(mesh.dof, mesh.dof);
     end
+
+    function bc_data = bc_data_finish(bc_data, mesh)
+        bc_data.unkn_u = setdiff(1:mesh.nodes, bc_data.enforced_u);
+        bc_data.unkn_v = setdiff(1:mesh.nodes, bc_data.enforced_v);
+        bc_data.unkn_p = setdiff(1:mesh.corners, bc_data.enforced_p);
+        bc_data.unkn_d = setdiff(1:mesh.corners, bc_data.enforced_d);
+    end
     
-    function bc_data = set_BC(bc_data, node, variable, value)        
-        dof_id = -1;
+    function bc_data = set_BC(bc_data, node, variable, value)
+        if(size(value,1) == 2)
+           value = value * ones(1,mesh.steps)';
+        end
+        
         switch variable
             case 'u'
-                dof_id = dof.u(1) + node - 1;
-                bc_data.U_dirichlet(node,:) = value;
-                removed_row = dof_id;
-                bc_data.dirichlet_matrix(removed_row,dof_id) = 1; 
-                bc_data.removed_rows(end+1) = removed_row;
+                bc_data.enforced_u_value(end+1,:) = value;
+                bc_data.enforced_u(end+1) = node;
             case 'v'
-                dof_id = dof.v(1) + node - 1;
-                bc_data.V_dirichlet(node,:) = value;
-                removed_row = dof_id;
-                bc_data.dirichlet_matrix(removed_row,dof_id) = 1;
-                bc_data.removed_rows(end+1) = removed_row; 
+                bc_data.enforced_v_value(end+1,:) = value;
+                bc_data.enforced_v(end+1) = node;
             case 'p'
                 corner = node_to_corner(node);
                 if corner > 0
-                    dof_id = dof.p(1) + corner - 1;
-                    bc_data.P_neumann(corner,:) = value;
-                    removed_row = dof.p(1) + corner - 1;
-                    bc_data.dirichlet_matrix(removed_row,dof_id) = 1; 
-                    bc_data.removed_rows(end+1) = removed_row;
+                    bc_data.enforced_p_value(end+1,:) = value;
+                    bc_data.enforced_p(end+1) = corner;
                 end
             case 'd'
                 corner = node_to_corner(node);
                 if corner > 0
-                    dof_id = dof.d(1) + corner - 1;
-                    bc_data.D_dirichlet(corner,:) = value;
-                    removed_row = dof.d(1) + corner - 1;
-                    bc_data.dirichlet_matrix(removed_row,dof_id) = 1; 
-                    bc_data.removed_rows(end+1) = removed_row;
+                    bc_data.enforced_d_value(end+1,:) = value;
+                    bc_data.enforced_d(end+1) = corner;
                 end
             otherwise
                 error('Unrecognized variable');
