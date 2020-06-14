@@ -1,6 +1,6 @@
 clear variables;
 clc; addpath('Post-processing');
-%% Data entry
+%% Adjustable parameters
 
 % Phisical data
 width = 1;
@@ -8,7 +8,7 @@ height = 1;
 duration = 2;
 
 visc0 = 0.1;
-mu   =  50;
+mu   =  10;
 omega = 1;
 
 % Discretization
@@ -19,17 +19,16 @@ mesh.steps = 50;
 theta = 1/2;
 
 % Numerical parameters
-method = 1;
+solver = 2;
 % 1: Picard
 % 2: Newton-Raphson
 
-stabilize_pressure = false;
-stabilize_concentration = true;
+% Relaxation
+relaxation = 1; % Recommended 1 for NR and ~0.5 for Picard
 
 % Precision
 maxIter = 20;
 tol = 1e-3;
-relaxation = 0.5;
 
 %% Generating mesh
 Gamma_test{1} = @(X)(X(1) == 0        && X(2) < height/2    && X(2) > 0);
@@ -70,8 +69,8 @@ bc_data =  boundary_conditions(coords, mesh, Gamma, node_to_corner, dof, duratio
 
 % Terms evaluated at step 1
 X = X_history(:,1);
-visc = get_viscosity(X(dof.p), visc0);
-source = get_source(X(dof.u), X(dof.v));
+visc = get_viscosity(X(dof.p), visc0, 0);
+source = get_source(X(dof.u), X(dof.v), 0);
 [K1, ~, ~, C1, ~, ~, M12_tau, K_tau, C1_tau] = assemble_iterated(connect, coords, node_to_corner, X, mesh, dof, Gamma, refelem, visc, mu, theta, dt);
 Pe_history(:,1) = get_peclet(coords, connect, mesh, dof, X, refelem, mu);
 
@@ -96,8 +95,8 @@ for step = 1:mesh.steps
     
     for iter=1:maxIter
         %% Assembling elemental matrices
-        source = get_source(X(dof.u), X(dof.v));
-        visc = get_viscosity(X(dof.p), visc0);
+        source = get_source(X(dof.u), X(dof.v), 0);
+        visc = get_viscosity(X(dof.p), visc0, 0);
         
         [K1, K21, K22, C1, C21, C22,  M12_tau, K_tau, C1_tau] = assemble_iterated(connect, coords, node_to_corner, X, mesh, dof, Gamma, refelem, visc, mu, theta, dt);
 
@@ -126,19 +125,25 @@ for step = 1:mesh.steps
         dred = d(bc_data.unkn_d) - B(bc_data.unkn_d, bc_data.enforced_d) * bc_data.enforced_d_value(:,step+1);
         
         %% Obtaining residual
-        [K, F] = build_monolythic(Au, Av, T1red, T2red, G1red, G2red, Bred, bu, bv, bp, dred);
+        [K, F] = build_monolithic(Au, Av, T1red, T2red, G1red, G2red, Bred, bu, bv, bp, dred);
         
         Xred = reduce_vec(X, bc_data, dof);
         res = F - K*Xred;
 
-        %% Picard iteration
-        dXred = K \ res;
-        dX = enlarge_dX(dXred, bc_data, dof, mesh);
+        %% Solver iteration
+        if solver == 1
+            % Picard
+            dXred = K \ res;
+        else
+            % Newton-Raphson
+            Jred = build_jacobian(mesh, dof, bc_data, X, dt, theta, visc0, Au, Av, Bred, M12, K21, K22, C21, C22, G1red, G2red, T1red, T2red);
+            dXred = Jred \ res;
+        end
         
+        dX = enlarge_dX(dXred, bc_data, dof, mesh);
         
         %% Calculating next X        
         X = X + relaxation * dX;
-        
         
         %% Evaluating error
         [error, ierror] = max(dX([dof.u, dof.v, dof.d])); % Ignoring pressure
@@ -159,7 +164,7 @@ for step = 1:mesh.steps
     else
         errtype = 'concentration';
     end
-    fprintf('Step %3d: Max error = %8e at dof %5d (%s)\n',step, error, ierror, errtype);
+    fprintf('Step %3d | %2d iters | Error %.3e | dof %5d (%s)\n',step, iter, error, ierror, errtype);
     
     X_history(:,step+1) = X;
 end

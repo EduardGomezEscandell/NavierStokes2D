@@ -1,14 +1,13 @@
-function [K1, K21, K22, C1, C21, C22, M12_tau, K_tau, C1_tau, L_hat] = assemble_iterated(connect, coords, node_to_corner, X, mesh, dof, Gamma, refelem, visc, mu, theta, dt) 
+function [K1, K21, K22, C1, C21, C22, M12_tau, K_tau, C1_tau] = assemble_iterated(connect, coords, node_to_corner, X, mesh, dof, Gamma, refelem, visc, mu, theta, dt) 
     
     K1  = sparse(mesh.nodes,mesh.nodes);
-    K21 = sparse(mesh.nodes,mesh.nodes);
-    K22 = sparse(mesh.nodes,mesh.nodes);
+    K21 = sparse(mesh.nodes,mesh.corners);
+    K22 = sparse(mesh.nodes,mesh.corners);
 
     C1  = sparse(mesh.corners,mesh.corners);
-    C21 = sparse(mesh.corners,mesh.corners);
-    C22 = sparse(mesh.corners,mesh.corners);
+    C21 = sparse(mesh.corners,mesh.nodes);
+    C22 = sparse(mesh.corners,mesh.nodes);
     
-    L_hat = sparse(mesh.corners, mesh.corners);
     K_tau  = sparse(mesh.corners,mesh.corners);
     C1_tau  = sparse(mesh.corners,mesh.corners);
     M12_tau  = sparse(mesh.corners,mesh.nodes);
@@ -26,16 +25,15 @@ function [K1, K21, K22, C1, C21, C22, M12_tau, K_tau, C1_tau, L_hat] = assemble_
 
         % Difusion matrices
         K1(nodes,nodes)  = K1(nodes,nodes)  + local_mat.K1;
-        K21(nodes,nodes) = K21(nodes,nodes) + local_mat.K21;
-        K22(nodes,nodes) = K22(nodes,nodes) + local_mat.K22;
+        K21(nodes,corners) = K21(nodes,corners) + local_mat.K21;
+        K22(nodes,corners) = K22(nodes,corners) + local_mat.K22;
 
         % Convection matrices
         C1(corners,corners)  = C1(corners,corners)  + local_mat.C1;
-        C21(corners,corners) = C21(corners,corners) + local_mat.C21;
-        C22(corners,corners) = C22(corners,corners) + local_mat.C22;
+        C21(corners,nodes) = C21(corners,nodes) + local_mat.C21;
+        C22(corners,nodes) = C22(corners,nodes) + local_mat.C22;
 
         % Stabilization matrices
-        L_hat(corners,corners)  = L_hat(corners,corners)  + local_mat.L_hat;
         C1_tau(corners,corners)  = C1_tau(corners,corners)  + local_mat.C1_tau;
         K_tau(corners,corners)  = K_tau(corners,corners)  + local_mat.K_tau;
         M12_tau(corners,nodes)  = M12_tau(corners,nodes)  + local_mat.M12_tau;

@@ -1,18 +1,17 @@
 function local_mat = FEM_iterated(local_coords, vel, conc, visc, mu, theta, dt, linear_elem, quadra_elem)
     % First Order
     C1 = zeros(4,4);
-    C21 = zeros(4,4);
-    C22 = zeros(4,4);
-    
-    L_hat = zeros(4,4);
-    
+
     % Second Order
     K1 = zeros(9,9);
-    K21 = zeros(9,9);
-    K22 = zeros(9,9);
-    Q = zeros(9,9);
     
     % Hybrid
+    C21 = zeros(4,9);
+    C22 = zeros(4,9);
+    
+    K21 = zeros(9,4);
+    K22 = zeros(9,4);
+    
     K_tau = zeros(4,4);
     C1_tau = zeros(4,4);
     M12_tau = zeros(4,9);
@@ -57,18 +56,18 @@ function local_mat = FEM_iterated(local_coords, vel, conc, visc, mu, theta, dt, 
 
             % Diffusion
             K1  =  K1 + w * gradN2' * nu_tilde * gradN2; % K1(nu)
-            K21 = K21 + w * gradN2' * grad_u * N2;           % K2(u)
-            K22 = K22 + w * gradN2' * grad_v * N2;           % K2(v)
+            K21 = K21 + w * gradN2' * grad_u * N1;       % K2(u)
+            K22 = K22 + w * gradN2' * grad_v * N1;       % K2(v)
 
             % Convection
             C1  =  C1 + w * N1' * ((N2*vel * gradN1)); 
-            C21 = C21 + w * (N1' * N1) * grad_dRho(1);      % C21(rho)
-            C22 = C22 + w * (N1' * N1) * grad_dRho(2);      % C22(rho)
+            C21 = C21 + w * (N1' * N2) * grad_dRho(1);      % C21(rho)
+            C22 = C22 + w * (N1' * N2) * grad_dRho(2);      % C22(rho)
             
             % Stabilization in pressure
-            alpha_0 = 1/3;
-            tau =  alpha_0 * (h*h)/(4 * nu_tilde);
-            L_hat = L_hat + w * tau * (gradN1'* gradN1);
+%             alpha_0 = 1/3;
+%             tau =  alpha_0 * (h*h)/(4 * nu_tilde);
+%             L_hat = L_hat + w * tau * (gradN1'* gradN1);
             
             % Stabilization in concentration
             tau = (1/(theta*dt) + 2*norm(a)/h + 4*mu/h^2)^-1;
@@ -95,6 +94,4 @@ function local_mat = FEM_iterated(local_coords, vel, conc, visc, mu, theta, dt, 
     local_mat.M12_tau = M12_tau * detJ;
     local_mat.K_tau   = K_tau   * detJ;
     local_mat.C1_tau  = C1_tau  * detJ;
-        
-    local_mat.L_hat  = L_hat  * detJ;
 end
