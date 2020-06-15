@@ -9,6 +9,7 @@ function post_processing_single(coords, connect, mesh, dof, corner_to_node, X)
     plotY = reshape(coords(2,:),[mesh.cols*2+1, mesh.rows*2+1])';
     
     modU = sqrt(X(dof.u).^2 + X(dof.v).^2);
+%     modU = 180 / pi * atan2(X(dof.u), X(dof.v)); % To visualize angle of heading
     plotU = reshape(modU,[mesh.cols*2+1, mesh.rows*2+1])';
     
     subplot(1,3,1);

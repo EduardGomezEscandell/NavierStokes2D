@@ -17,15 +17,16 @@ function bc_data =  boundary_conditions(coords, mesh, Gamma, node_to_corner, dof
     
     for node = Gamma.nodes{2}
         % Gamma 2
-        bc_data = set_BC(bc_data, node, 'p', 0);
+        bc_data = set_BC(bc_data, node, 'u', 0);
+        bc_data = set_BC(bc_data, node, 'v', 0);
+        bc_data = set_BC(bc_data, node, 'd', 1);
     end
     
     for node = Gamma.nodes{4}
         % Gamma 4
-        X = coords(:,node);
-%         bc_data = set_BC(bc_data, node, 'u', sin(t*pi) * max(0, (X(2)-0.1) * (height - 0.1 - X(2))));
-        bc_data = set_BC(bc_data, node, 'p', sin(t*pi));
-        bc_data = set_BC(bc_data, node, 'd', 0);
+          bc_data = set_BC(bc_data, node, 'v', 1);
+          bc_data = set_BC(bc_data, node, 'u', 0);
+          bc_data = set_BC(bc_data, node, 'd', 0);
     end
     
     %% Writing pressure BC in case its enclosed flow

@@ -12,11 +12,11 @@ mu   =  10;
 omega = 1;
 
 % Discretization
-x_elems = 20;
-y_elems = 20;
+x_elems = 10;
+y_elems = 10;
 
-mesh.steps = 50;
-theta = 1/2;
+mesh.steps = 20;
+theta = 2;
 
 % Numerical parameters
 solver = 2;
@@ -24,7 +24,7 @@ solver = 2;
 % 2: Newton-Raphson
 
 % Relaxation
-relaxation = 1; % Recommended 1 for NR and ~0.5 for Picard
+relaxation = 0.5; % Recommended 1 for NR and ~0.5 for Picard
 
 % Precision
 maxIter = 20;
@@ -58,7 +58,6 @@ mesh.dof = max([dof.u, dof.v, dof.p, dof.d]);
 dt = duration / mesh.steps;
 %% Solution vectors
 X_history = zeros(mesh.dof, mesh.steps+1);
-Pe_history = zeros(mesh.nodes, mesh.steps+1);
 
 %% Selecting boundary conditions
 bc_data =  boundary_conditions(coords, mesh, Gamma, node_to_corner, dof, duration, omega);
@@ -74,7 +73,7 @@ source = get_source(X(dof.u), X(dof.v), 0);
 [K1, ~, ~, C1, ~, ~, M12_tau, K_tau, C1_tau] = assemble_iterated(connect, coords, node_to_corner, X, mesh, dof, Gamma, refelem, visc, mu, theta, dt);
 Pe_history(:,1) = get_peclet(coords, connect, mesh, dof, X, refelem, mu);
 
-% steady_state;
+steady_state;
 
 % Reducing matrices
 G1red  = G1(bc_data.unkn_p, bc_data.unkn_u);

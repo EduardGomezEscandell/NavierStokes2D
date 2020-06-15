@@ -64,11 +64,6 @@ function local_mat = FEM_iterated(local_coords, vel, conc, visc, mu, theta, dt, 
             C21 = C21 + w * (N1' * N2) * grad_dRho(1);      % C21(rho)
             C22 = C22 + w * (N1' * N2) * grad_dRho(2);      % C22(rho)
             
-            % Stabilization in pressure
-%             alpha_0 = 1/3;
-%             tau =  alpha_0 * (h*h)/(4 * nu_tilde);
-%             L_hat = L_hat + w * tau * (gradN1'* gradN1);
-            
             % Stabilization in concentration
             tau = (1/(theta*dt) + 2*norm(a)/h + 4*mu/h^2)^-1;
             % tau = (1/(theta*dt)^2 + (2*norm(a)/h)^2 + 9*(4*mu/h^2)^2)^(-1/2);
