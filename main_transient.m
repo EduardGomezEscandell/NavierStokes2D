@@ -9,7 +9,6 @@ duration = 2;
 
 visc0 = 0.1;
 mu   =  10;
-omega = 1;
 
 % Discretization
 x_elems = 10;
@@ -19,7 +18,7 @@ mesh.steps = 20;
 theta = 2;
 
 % Numerical parameters
-solver = 2;
+solver = 1;
 % 1: Picard
 % 2: Newton-Raphson
 
@@ -60,7 +59,7 @@ dt = duration / mesh.steps;
 X_history = zeros(mesh.dof, mesh.steps+1);
 
 %% Selecting boundary conditions
-bc_data =  boundary_conditions(coords, mesh, Gamma, node_to_corner, dof, duration, omega);
+bc_data =  boundary_conditions(coords, mesh, Gamma, node_to_corner, duration);
 
 %% Solver
 % Constant terms
@@ -72,8 +71,6 @@ visc = get_viscosity(X(dof.p), visc0, 0);
 source = get_source(X(dof.u), X(dof.v), 0);
 [K1, ~, ~, C1, ~, ~, M12_tau, K_tau, C1_tau] = assemble_iterated(connect, coords, node_to_corner, X, mesh, dof, Gamma, refelem, visc, mu, theta, dt);
 Pe_history(:,1) = get_peclet(coords, connect, mesh, dof, X, refelem, mu);
-
-steady_state;
 
 % Reducing matrices
 G1red  = G1(bc_data.unkn_p, bc_data.unkn_u);

@@ -8,7 +8,6 @@ height = 1;
 
 visc0 = 0.1;
 mu   =  10;
-omega = 1;
 
 % Discretization
 x_elems = 10;
@@ -20,7 +19,7 @@ solver = 2;
 % 2: Newton-Raphson
 
 % Relaxation
-relaxation = 0.1; % Recommended 1 for NR and ~0.5 for Picard
+relaxation = 1; % Recommended 1 for NR and ~0.5 for Picard
 
 % Precision
 maxIter = 20;
@@ -58,7 +57,7 @@ theta = 0;
 duration = 0;
 
 %% Selecting boundary conditions
-bc_data =  boundary_conditions(coords, mesh, Gamma, node_to_corner, dof, duration, omega);
+bc_data =  boundary_conditions(coords, mesh, Gamma, node_to_corner, duration);
 
 %% Solution vectors
 X = zeros(mesh.dof, 1);
@@ -104,7 +103,7 @@ for iter=1:maxIter
     dXred = K\res;
     dX = build_dX(dXred, bc_data, dof, mesh);
     
-    error = norm(dX([dof.u, dof.v, dof.d])); % Ignoring pressure
+    error = max(dX([dof.u, dof.v, dof.d])); % Ignoring pressure
     X = X + dX;
     
     fprintf('Iteration %3d. Error = %.3e\n', iter, error);

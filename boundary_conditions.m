@@ -1,4 +1,4 @@
-function bc_data =  boundary_conditions(coords, mesh, Gamma, node_to_corner, dof, duration, omega)   
+function bc_data =  boundary_conditions(coords, mesh, Gamma, node_to_corner, duration)   
     %% Useful values
     span = max(coords');
     width = span(1);
@@ -9,30 +9,41 @@ function bc_data =  boundary_conditions(coords, mesh, Gamma, node_to_corner, dof
     bc_data = bc_data_init(mesh);
     
     %% Setting boundary conditions
-    for node = [Gamma.nodes{1}, Gamma.nodes{3}, Gamma.nodes{5}]
-        % Gamma 1, 3 and 5
+    for node = [Gamma.nodes{1}, Gamma.nodes{2}]
+        % Gamma 1 & 2
         bc_data = set_BC(bc_data, node, 'u', 0);
-        bc_data = set_BC(bc_data, node, 'v', 0);
+        bc_data = set_BC(bc_data, node, 'v', -1-sin(2*pi*t));
     end
     
-    for node = Gamma.nodes{2}
-        % Gamma 2
-        bc_data = set_BC(bc_data, node, 'u', 0);
+    for node = Gamma.nodes{3}
+        % Gamma 3
+        bc_data = set_BC(bc_data, node, 'u', -1-sin(2*pi*t));
         bc_data = set_BC(bc_data, node, 'v', 0);
         bc_data = set_BC(bc_data, node, 'd', 1);
     end
     
     for node = Gamma.nodes{4}
         % Gamma 4
-          bc_data = set_BC(bc_data, node, 'v', 1);
+          bc_data = set_BC(bc_data, node, 'v', 1+sin(2*pi*t));
           bc_data = set_BC(bc_data, node, 'u', 0);
           bc_data = set_BC(bc_data, node, 'd', 0);
+    end
+    
+    for node = Gamma.nodes{5}
+        % Gamma 5
+        bc_data = set_BC(bc_data, node, 'u', 1+sin(2*pi*t));
+        bc_data = set_BC(bc_data, node, 'v', 0);
+        bc_data = set_BC(bc_data, node, 'd', 0);
     end
     
     %% Writing pressure BC in case its enclosed flow
     
     if size(bc_data.enforced_p,1) == 0
         bc_data = set_BC(bc_data, 1, 'p', 0);
+    end
+    
+    if size(bc_data.enforced_d,1) == 0
+        bc_data = set_BC(bc_data, 1, 'd', 0);
     end
     
     %% Finishing bc_data object
